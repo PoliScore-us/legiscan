@@ -12,7 +12,7 @@ import lombok.Data;
 public class LegiscanPeopleView {
     
 	public static String getCacheKey(Integer peopleId) {
-		return "getrollcall/" + peopleId;
+		return "getperson/" + peopleId;
 	}
 	
     @JsonProperty("people_id")
