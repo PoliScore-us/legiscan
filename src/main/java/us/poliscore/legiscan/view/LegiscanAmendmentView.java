@@ -32,10 +32,15 @@ public class LegiscanAmendmentView {
 
     private String description;
 
-    private String mime;
+    @JsonProperty("mime")
+    private String mimeCode;
 
     @JsonProperty("mime_id")
     private int mimeId;
+    
+    public LegiscanMimeType getMime() {
+    	return LegiscanMimeType.fromValue(mimeId);
+    }
 
     @JsonProperty("amendment_size")
     private int amendmentSize;

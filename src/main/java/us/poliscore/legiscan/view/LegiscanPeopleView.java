@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Data;
 
 @Data
@@ -16,74 +17,86 @@ public class LegiscanPeopleView {
 	}
 	
     @JsonProperty("people_id")
-    private Integer peopleId;
+    protected Integer peopleId;
     
     @JsonProperty("person_hash")
-    private String personHash;
+    protected String personHash;
     
     @JsonProperty("state_id")
-    private Integer stateId;
+    protected Integer stateId;
+    
+    public LegiscanState getState() {
+    	return LegiscanState.fromId(stateId);
+    }
     
     @JsonProperty("party_id")
-    private Integer partyId;
+    protected Integer partyId;
     
     @JsonProperty("party")
-    private String party;
+    protected String partyCode;
+    
+    public LegiscanParty getParty() {
+    	return LegiscanParty.fromValue(partyId);
+    }
     
     @JsonProperty("role_id")
-    private Integer roleId;
+    protected Integer roleId;
     
     @JsonProperty("role")
-    private String role;
+    protected String roleCode;
+    
+    public LegiscanRole getRole() {
+    	return LegiscanRole.fromValue(roleId);
+    }
     
     @JsonProperty("name")
-    private String name;
+    protected String name;
     
     @JsonProperty("first_name")
-    private String firstName;
+    protected String firstName;
     
     @JsonProperty("middle_name")
-    private String middleName;
+    protected String middleName;
     
     @JsonProperty("last_name")
-    private String lastName;
+    protected String lastName;
     
     @JsonProperty("suffix")
-    private String suffix;
+    protected String suffix;
     
     @JsonProperty("nickname")
-    private String nickname;
+    protected String nickname;
     
     @JsonProperty("district")
-    private String district;
+    protected String district;
     
     @JsonProperty("ftm_eid")
-    private Integer ftmEid;
+    protected Integer ftmEid;
     
     @JsonProperty("votesmart_id")
-    private Integer votesmartId;
+    protected Integer votesmartId;
     
     @JsonProperty("opensecrets_id")
-    private String opensecretsId;
+    protected String opensecretsId;
     
     @JsonProperty("knowwho_pid")
-    private Integer knowwhoPid;
+    protected Integer knowwhoPid;
     
     @JsonProperty("ballotpedia")
-    private String ballotpedia;
+    protected String ballotpedia;
     
     @JsonProperty("bioguide_id")
-    private String bioguideId;
+    protected String bioguideId;
     
     @JsonProperty("committee_sponsor")
-    private Integer committeeSponsor;
+    protected Integer committeeSponsor;
     
     @JsonProperty("committee_id")
-    private Integer committeeId;
+    protected Integer committeeId;
     
     @Data
     public static class LegiscanSessionPeopleView {
-    	private LegiscanSessionView session;
-        private List<LegiscanPeopleView> people;
+    	protected LegiscanSessionView session;
+        protected List<LegiscanPeopleView> people;
     }
 }

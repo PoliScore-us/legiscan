@@ -21,71 +21,83 @@ public class LegiscanBillView {
 	}
 	
     @JsonProperty("bill_id")
-    private Integer billId;
+    protected Integer billId;
     
     @JsonProperty("change_hash")
-    private String changeHash;
+    protected String changeHash;
     
     @JsonProperty("session_id")
-    private Integer sessionId;
+    protected Integer sessionId;
     
     @JsonProperty("session")
-    private LegiscanSessionView session;
+    protected LegiscanSessionView session;
     
     @JsonProperty("url")
-    private String url;
+    protected String url;
     
     @JsonProperty("state_link")
-    private String stateLink;
+    protected String stateLink;
     
     @JsonProperty("completed")
-    private Integer completed;
+    protected Integer completed;
     
     @JsonProperty("status")
-    private Integer status;
+    protected Integer statusId;
+    
+    public LegiscanStatus getStatus() {
+    	return LegiscanStatus.fromValue(statusId);
+    }
     
     @JsonProperty("status_date")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-    private LocalDate statusDate;
+    protected LocalDate statusDate;
     
     @JsonProperty("progress")
-    private List<LegiscanProgressView> progress;
+    protected List<LegiscanProgressView> progress;
     
     @JsonProperty("state")
-    private String state;
+    protected String stateCode;
     
     @JsonProperty("state_id")
-    private Integer stateId;
+    protected Integer stateId;
+    
+    public LegiscanState getState() {
+    	return LegiscanState.fromId(stateId);
+    }
     
     @JsonProperty("bill_number")
-    private String billNumber;
+    protected String billNumber;
     
     @JsonProperty("bill_type")
-    private String billType;
+    protected String billTypeCode;
     
     @JsonProperty("bill_type_id")
-    private Integer billTypeId;
+    protected Integer billTypeId;
+    
+    public LegiscanBillType getBillType() {
+    	return LegiscanBillType.fromValue(billTypeId);
+    }
     
     @JsonProperty("body")
-    private String body;
+    protected String body;
     
     @JsonProperty("body_id")
-    private Integer bodyId;
+    protected Integer bodyId;
     
     @JsonProperty("current_body")
-    private String currentBody;
+    protected String currentBody;
     
     @JsonProperty("current_body_id")
-    private Integer currentBodyId;
+    protected Integer currentBodyId;
     
     @JsonProperty("title")
-    private String title;
+    protected String title;
     
     @JsonProperty("description")
-    private String description;
+    protected String description;
     
     @JsonProperty("pending_committee_id")
-    private Integer pendingCommitteeId;
+    protected Integer pendingCommitteeId;
     
     // Two different bills serialize this object completely differently.
     // This bill serializes it as an object:
@@ -94,34 +106,34 @@ public class LegiscanBillView {
     // https://api.legiscan.com/?key=123&op=getBill&id=2014864
     @JsonProperty("committee")
     @JsonDeserialize(using = LegiscanCommitteeViewListDeserializer.class)
-    private List<LegiscanCommitteeView> committee;
+    protected List<LegiscanCommitteeView> committee;
     
-    private List<LegiscanReferralView> referrals;
+    protected List<LegiscanReferralView> referrals;
     
     @JsonProperty("history")
-    private List<LegiscanHistoryView> history;
+    protected List<LegiscanHistoryView> history;
     
     @JsonProperty("sponsors")
-    private List<LegiscanSponsorView> sponsors;
+    protected List<LegiscanSponsorView> sponsors;
     
     @JsonProperty("sasts")
-    private List<LegiscanSastView> sasts;
+    protected List<LegiscanSastView> sasts;
     
     @JsonProperty("subjects")
-    private List<LegiscanSubjectView> subjects;
+    protected List<LegiscanSubjectView> subjects;
     
     @JsonProperty("texts")
-    private List<LegiscanTextMetadataView> texts;
+    protected List<LegiscanTextMetadataView> texts;
     
     @JsonProperty("votes")
-    private List<LegiscanVoteView> votes;
+    protected List<LegiscanVoteView> votes;
     
     @JsonProperty("amendments")
-    private List<LegiscanAmendmentView> amendments;
+    protected List<LegiscanAmendmentView> amendments;
     
     @JsonProperty("supplements")
-    private List<LegiscanSupplementView> supplements;
+    protected List<LegiscanSupplementView> supplements;
     
     @JsonProperty("calendar")
-    private List<LegiscanCalendarView> calendar;
+    protected List<LegiscanCalendarView> calendar;
 }

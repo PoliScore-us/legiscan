@@ -19,13 +19,21 @@ public class LegiscanSponsorView {
     private Integer partyId;
     
     @JsonProperty("party")
-    private String party;
+    private String partyCode;
+    
+    public LegiscanParty getParty() {
+    	return LegiscanParty.fromValue(partyId);
+    }
     
     @JsonProperty("role_id")
     private Integer roleId;
     
     @JsonProperty("role")
-    private String role;
+    private String roleCode;
+    
+    public LegiscanRole getRole() {
+    	return LegiscanRole.fromValue(roleId);
+    }
     
     @JsonProperty("name")
     private String name;

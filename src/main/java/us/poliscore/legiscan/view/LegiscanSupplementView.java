@@ -24,16 +24,22 @@ public class LegiscanSupplementView {
     @JsonProperty("type_id")
     private int typeId;
 
-    private String type;
+    @JsonProperty("type")
+    private String typeCode;
 
     private String title;
 
     private String description;
 
-    private String mime;
+    @JsonProperty("mime")
+    private String mimeCode;
 
     @JsonProperty("mime_id")
     private int mimeId;
+    
+    public LegiscanMimeType getMime() {
+    	return LegiscanMimeType.fromValue(mimeId);
+    }
 
     @JsonProperty("supplement_size")
     private int supplementSize;

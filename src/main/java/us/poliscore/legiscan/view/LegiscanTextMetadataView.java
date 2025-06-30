@@ -20,16 +20,24 @@ public class LegiscanTextMetadataView {
     private LocalDate date;
     
     @JsonProperty("type")
-    private String type;
+    private String typeCode;
     
     @JsonProperty("type_id")
     private Integer typeId;
     
+    public LegiscanTextType getType() {
+    	return LegiscanTextType.fromValue(typeId);
+    }
+    
     @JsonProperty("mime")
-    private String mime;
+    private String mimeCode;
     
     @JsonProperty("mime_id")
     private Integer mimeId;
+    
+    public LegiscanMimeType getMime() {
+    	return LegiscanMimeType.fromValue(mimeId);
+    }
     
     @JsonProperty("url")
     private String url;

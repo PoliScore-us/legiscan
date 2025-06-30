@@ -12,7 +12,11 @@ public class LegiscanSastView {
     private Integer typeId;
 
     @JsonProperty("type")
-    private String type;
+    private String typeCode;
+    
+    public LegiscanSastType getSastType() {
+    	return LegiscanSastType.fromValue(typeId);
+    }
 
     @JsonProperty("sast_bill_number")
     private String sastBillNumber;

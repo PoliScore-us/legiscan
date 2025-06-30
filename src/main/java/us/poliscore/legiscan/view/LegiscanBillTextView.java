@@ -13,31 +13,41 @@ import lombok.Data;
 public class LegiscanBillTextView {
 
 	@JsonProperty("doc_id")
-    private int docId;
+    protected int docId;
 
     @JsonProperty("bill_id")
-    private int billId;
+    protected int billId;
 
     @JsonProperty("date")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-    private LocalDate date;
+    protected LocalDate date;
     
-    private String type;
+    @JsonProperty("type")
+    protected String typeCode;
 
     @JsonProperty("type_id")
-    private int typeId;
+    protected int typeId;
+    
+    public LegiscanTextType getType() {
+    	return LegiscanTextType.fromValue(typeId);
+    }
 
-    private String mime;
+    @JsonProperty("mime")
+    protected String mimeCode;
 
     @JsonProperty("mime_id")
-    private int mimeId;
+    protected int mimeId;
+    
+    public LegiscanMimeType getMime() {
+    	return LegiscanMimeType.fromValue(mimeId);
+    }
 
     @JsonProperty("text_size")
-    private int textSize;
+    protected int textSize;
 
     @JsonProperty("text_hash")
-    private String textHash;
+    protected String textHash;
 
-    private String doc; // A base64 encoded string
+    protected String doc; // A base64 encoded string
 }
 
