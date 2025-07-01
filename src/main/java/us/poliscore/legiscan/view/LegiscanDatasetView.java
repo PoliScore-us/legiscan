@@ -13,6 +13,10 @@ public class LegiscanDatasetView {
 
     @JsonProperty("state_id")
     private int stateId;
+    
+    public LegiscanState getState() {
+    	return LegiscanState.fromId(stateId);
+    }
 
     @JsonProperty("session_id")
     private int sessionId;

@@ -20,10 +20,11 @@ import us.poliscore.legiscan.view.LegiscanDatasetView;
 import us.poliscore.legiscan.view.LegiscanPeopleView;
 import us.poliscore.legiscan.view.LegiscanResponse;
 import us.poliscore.legiscan.view.LegiscanRollCallView;
+import us.poliscore.legiscan.view.LegiscanSessionView;
 
-public class CachedLegiscanDataset {
+public class CachedLegiscanDatasetResult {
 	
-	private static final Logger LOGGER = Logger.getLogger(CachedLegiscanDataset.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(CachedLegiscanDatasetResult.class.getName());
 	
 	@Getter
 	protected CachedLegiscanService legiscan;
@@ -42,7 +43,7 @@ public class CachedLegiscanDataset {
 	@Getter
 	protected Map<Integer, LegiscanRollCallView> votes = new HashMap<Integer, LegiscanRollCallView>();
 	
-	public CachedLegiscanDataset(CachedLegiscanService client, LegiscanDatasetView dataset, ObjectMapper objectMapper)
+	public CachedLegiscanDatasetResult(CachedLegiscanService client, LegiscanDatasetView dataset, ObjectMapper objectMapper)
 	{
 		this.legiscan = client;
 		this.dataset = dataset;
@@ -75,7 +76,7 @@ public class CachedLegiscanDataset {
 	{
 
         byte[] zipBytes = legiscan.getDatasetRaw(dataset.getSessionId(), dataset.getAccessKey(), "json");
-
+        		
         // Write zipBytes to a temporary file
         Path tempZip = Files.createTempFile("dataset-", ".zip");
         

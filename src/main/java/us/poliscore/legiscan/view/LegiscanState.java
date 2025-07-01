@@ -1,5 +1,8 @@
 package us.poliscore.legiscan.view;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum LegiscanState {
     ALABAMA("AL"),
     ALASKA("AK"),
@@ -67,6 +70,12 @@ public enum LegiscanState {
     public int getId() {
         return ordinal() + 1;
     }
+    
+    @Override
+    @JsonValue
+    public String toString() {
+    	return getAbbreviation();
+    }
 
     public static LegiscanState fromId(int id) {
         if (id <= 0 || id > values().length) {
@@ -75,6 +84,7 @@ public enum LegiscanState {
         return values()[id - 1];
     }
 
+    @JsonCreator
     public static LegiscanState fromAbbreviation(String abbr) {
         for (LegiscanState state : values()) {
             if (state.abbreviation.equalsIgnoreCase(abbr)) {

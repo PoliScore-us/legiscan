@@ -20,7 +20,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.Getter;
 import lombok.SneakyThrows;
-import us.poliscore.legiscan.cache.CachedLegiscanDataset;
+import us.poliscore.legiscan.cache.CachedLegiscanDatasetResult;
 import us.poliscore.legiscan.cache.FileSystemLegiscanCache;
 import us.poliscore.legiscan.cache.LegiscanCache;
 import us.poliscore.legiscan.view.LegiscanAmendmentView;
@@ -186,9 +186,9 @@ public class CachedLegiscanService extends LegiscanService {
      * @param dataset
      */
     @SneakyThrows
-    public CachedLegiscanDataset cacheDataset(LegiscanDatasetView dataset)
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanDatasetView dataset)
     {
-    	var cachedDataset = new CachedLegiscanDataset(this, dataset, objectMapper);
+    	var cachedDataset = new CachedLegiscanDatasetResult(this, dataset, objectMapper);
     	
     	cachedDataset.update();
     	
@@ -204,7 +204,7 @@ public class CachedLegiscanService extends LegiscanService {
      * @param special
      */
     @SneakyThrows
-    public CachedLegiscanDataset cacheDataset(LegiscanState state, int year, boolean special) {
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, boolean special) {
 		List<LegiscanDatasetView> datasets = getDatasetList(state, year);
         
         for (var dataset : datasets)
@@ -216,7 +216,7 @@ public class CachedLegiscanService extends LegiscanService {
         
         throw new RuntimeException("Dataset not found!");
 	}
-    public CachedLegiscanDataset cacheDataset(LegiscanState state, int year) { return cacheDataset(state,year,false); }
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year) { return cacheDataset(state,year,false); }
 
     @Override
     public List<LegiscanSessionView> getSessionList(LegiscanState state) {

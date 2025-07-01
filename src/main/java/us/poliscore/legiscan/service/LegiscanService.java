@@ -167,7 +167,7 @@ public class LegiscanService {
      * 
      * Refresh frequency: 1 hour
      * 
-     * @param stateCode Retrieve bill master list for “current” session in the given state (use with caution)
+     * @param state Retrieve bill master list for “current” session in the given state (use with caution)
      * @return List of bill information including bill_id and bill_number. The change_hash is a representation of the current bill status; it should be stored for a quick comparison to subsequent getMasterList calls to detect what bills have changed and need updating via getBill
      */
     public LegiscanMasterListView getMasterList(LegiscanState state) {
@@ -185,7 +185,7 @@ public class LegiscanService {
      * 
      * Refresh frequency: 1 hour
      * 
-     * @param stateCode
+     * @param state
      * @return List of bill information including bill_id and bill_number. The change_hash is a representation of the current bill status; it should be stored for a quick comparison to subsequent getMasterListRaw calls to detect what bills have changed and need updating via getBill.
      */
     public LegiscanMasterListView getMasterListRaw(LegiscanState state) {
