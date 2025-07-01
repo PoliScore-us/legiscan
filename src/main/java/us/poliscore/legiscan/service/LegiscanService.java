@@ -7,7 +7,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -32,6 +31,7 @@ import us.poliscore.legiscan.view.LegiscanRollCallView;
 import us.poliscore.legiscan.view.LegiscanSearchView;
 import us.poliscore.legiscan.view.LegiscanSessionView;
 import us.poliscore.legiscan.view.LegiscanSponsoredBillView;
+import us.poliscore.legiscan.view.LegiscanState;
 import us.poliscore.legiscan.view.LegiscanSupplementView;
 
 /**
@@ -126,7 +126,7 @@ public class LegiscanService {
 
 
     /**
-     * This operation returns a list of sessions that are available for access in the given state abbreviation, or all sessions if
+     * This operation returns a list of sessions that are available for access in the given state, or all sessions if
 	 * no state is given
 	 * 
 	 * Refresh frequency: daily
@@ -134,8 +134,8 @@ public class LegiscanService {
      * @param state (Optional) Retrieve a list of available sessions for the given state abbreviation
      * @return List of session information including session_id for subsequent getMasterList calls along with session years, special session indicator and the dataset_hash which reflects the current dataset version for the session_id for identifying and tracking when archives change.
      */
-    public List<LegiscanSessionView> getSessionList(String state) {
-        String url = buildUrl("getSessionList", "state", state);
+    public List<LegiscanSessionView> getSessionList(LegiscanState state) {
+        String url = buildUrl("getSessionList", "state", state.getAbbreviation());
 
         LegiscanResponse response = makeRequest(
                 new TypeReference<LegiscanResponse>() {},
@@ -170,8 +170,8 @@ public class LegiscanService {
      * @param stateCode Retrieve bill master list for “current” session in the given state (use with caution)
      * @return List of bill information including bill_id and bill_number. The change_hash is a representation of the current bill status; it should be stored for a quick comparison to subsequent getMasterList calls to detect what bills have changed and need updating via getBill
      */
-    public LegiscanMasterListView getMasterList(String stateCode) {
-        String url = buildUrl("getMasterList", "state", stateCode);
+    public LegiscanMasterListView getMasterList(LegiscanState state) {
+        String url = buildUrl("getMasterList", "state", state.getAbbreviation());
 
         LegiscanResponse response = makeRequest(
                 new TypeReference<LegiscanResponse>() {},
@@ -188,8 +188,8 @@ public class LegiscanService {
      * @param stateCode
      * @return List of bill information including bill_id and bill_number. The change_hash is a representation of the current bill status; it should be stored for a quick comparison to subsequent getMasterListRaw calls to detect what bills have changed and need updating via getBill.
      */
-    public LegiscanMasterListView getMasterListRaw(String stateCode) {
-        String url = buildUrl("getMasterListRaw", "state", stateCode);
+    public LegiscanMasterListView getMasterListRaw(LegiscanState state) {
+        String url = buildUrl("getMasterListRaw", "state", state.getAbbreviation());
 
         LegiscanResponse response = makeRequest(
                 new TypeReference<LegiscanResponse>() {},
@@ -345,8 +345,8 @@ public class LegiscanService {
      * @param page (Optional) Result set page number to return [Default: 1]
      * @return Page of search results based on relevance to the given search parameters. The change_hash should be stored for a quick comparison on subsequent calls to detect when bills have changed and need updating.
      */
-    public LegiscanSearchView getSearch(String state, String query, Integer year, Integer page) {
-        String url = buildUrl("getSearch", "query", query, "state", state, "year", String.valueOf(year), "page", String.valueOf(page));
+    public LegiscanSearchView getSearch(LegiscanState state, String query, Integer year, Integer page) {
+        String url = buildUrl("getSearch", "query", query, "state", state.getAbbreviation(), "year", String.valueOf(year), "page", String.valueOf(page));
         return makeRequest(new TypeReference<LegiscanResponse>() {}, url).getSearchresult();
     }
     
@@ -378,15 +378,15 @@ public class LegiscanService {
 	 * - https://legiscan.com/bill-numbers
      * - https://legiscan.com/fulltext-search
      * 
-     * @param state State abbreviation to search on, or ALL for entire nation
+     * @param state State to search on, or ALL for entire nation
      * @param query Full text query string to run against the search engine, URL encoded
      * @param year (Optional) Year where 1=all, 2=current, 3=recent, 4=prior, >1900=exact [Default: 2]
      * @param sessionId (Optional) Limit search to a specific session_id as given by id
      * @param page (Optional) Result set page number to return [Default: 1]
      * @return Page of search results based on relevance to the given search parameters. The change_hash should be stored for a quick comparison on subsequent calls to detect when bills have changed and need updating
      */
-    public LegiscanSearchView getSearchRaw(String state, String query, Integer year, Integer sessionId, Integer page) {
-        String url = buildUrl("getSearchRaw", "query", query, "state", state, "year", String.valueOf(year), "id", String.valueOf(sessionId), "page", String.valueOf(page));
+    public LegiscanSearchView getSearchRaw(LegiscanState state, String query, Integer year, Integer sessionId, Integer page) {
+        String url = buildUrl("getSearchRaw", "query", query, "state", state.getAbbreviation(), "year", String.valueOf(year), "id", String.valueOf(sessionId), "page", String.valueOf(page));
         return makeRequest(new TypeReference<LegiscanResponse>() {}, url).getSearchresult();
     }
     
@@ -418,8 +418,8 @@ public class LegiscanService {
      * @param year (Optional) Filter dataset results for a given year
      * @return List of dataset information including session_id and access_key which will be required for getDataset. The dataset_hash is a representation of the current archive version, not the file itself, it should be stored for a quick comparison to subsequent getDatasetList calls to detect when archives have changed and need retrieval
      */
-    public List<LegiscanDatasetView> getDatasetList(String state, Integer year) {
-        String url = buildUrl("getDatasetList", "state", state, "year", String.valueOf(year));
+    public List<LegiscanDatasetView> getDatasetList(LegiscanState state, Integer year) {
+        String url = buildUrl("getDatasetList", "state", state.getAbbreviation(), "year", String.valueOf(year));
 
         LegiscanResponse response = makeRequest(
                 new TypeReference<LegiscanResponse>() {},

@@ -51,7 +51,8 @@ public enum LegiscanState {
     WASHINGTON_DC("DC"),
     WEST_VIRGINIA("WV"),
     WISCONSIN("WI"),
-    WYOMING("WY");
+    WYOMING("WY"),
+	CONGRESS("US");
 
     private final String abbreviation;
 

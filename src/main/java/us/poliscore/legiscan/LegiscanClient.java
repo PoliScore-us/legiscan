@@ -17,6 +17,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.SneakyThrows;
 import us.poliscore.legiscan.service.CachedLegiscanService;
 import us.poliscore.legiscan.service.LegiscanService;
+import us.poliscore.legiscan.view.LegiscanState;
 
 public class LegiscanClient {
 	@SneakyThrows
@@ -80,13 +81,13 @@ public class LegiscanClient {
 
             service = builder.build();
         }
-
+        
         ObjectMapper outputMapper = JsonMapper.builder().addModule(new JavaTimeModule()).build();
 
         switch (op) {
         	case "cacheDataset" -> {
         		var cacheService = (CachedLegiscanService)service;
-        		var cached = cacheService.cacheDataset(cmd.getOptionValue("state"), Integer.parseInt(cmd.getOptionValue("year")), cmd.hasOption("special"));
+        		var cached = cacheService.cacheDataset(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")), Integer.parseInt(cmd.getOptionValue("year")), cmd.hasOption("special"));
         		System.out.println("Successfully loaded [" + cached.getDataset().getSessionName() + "] into cache [" + cacheService.getCache().toString() + "]. Dataset contains " + cached.getPeople().size() + " people, " + cached.getBills().size()+ " bills, and " + cached.getVotes().size()+ " votes.");
         	}
             case "getBill" -> System.out.println(outputMapper.writeValueAsString(service.getBill(Integer.parseInt(cmd.getOptionValue("id")))));
@@ -95,15 +96,15 @@ public class LegiscanClient {
             case "getSupplement" -> System.out.println(outputMapper.writeValueAsString(service.getSupplement(Integer.parseInt(cmd.getOptionValue("id")))));
             case "getRollCall" -> System.out.println(outputMapper.writeValueAsString(service.getRollCall(Integer.parseInt(cmd.getOptionValue("id")))));
             case "getPerson" -> System.out.println(outputMapper.writeValueAsString(service.getPerson(Integer.parseInt(cmd.getOptionValue("id")))));
-            case "getSessionList" -> System.out.println(outputMapper.writeValueAsString(service.getSessionList(cmd.getOptionValue("state"))));
+            case "getSessionList" -> System.out.println(outputMapper.writeValueAsString(service.getSessionList(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")))));
             case "getMasterList" -> {
                 if (cmd.hasOption("id")) System.out.println(outputMapper.writeValueAsString(service.getMasterList(Integer.parseInt(cmd.getOptionValue("id")))));
-                else if (cmd.hasOption("state")) System.out.println(outputMapper.writeValueAsString(service.getMasterList(cmd.getOptionValue("state"))));
+                else if (cmd.hasOption("state")) System.out.println(outputMapper.writeValueAsString(service.getMasterList(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")))));
                 else throw new IllegalArgumentException("getMasterList requires --id or --state");
             }
             case "getMasterListRaw" -> {
                 if (cmd.hasOption("id")) System.out.println(outputMapper.writeValueAsString(service.getMasterListRaw(Integer.parseInt(cmd.getOptionValue("id")))));
-                else if (cmd.hasOption("state")) System.out.println(outputMapper.writeValueAsString(service.getMasterListRaw(cmd.getOptionValue("state"))));
+                else if (cmd.hasOption("state")) System.out.println(outputMapper.writeValueAsString(service.getMasterListRaw(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")))));
                 else throw new IllegalArgumentException("getMasterListRaw requires --id or --state");
             }
             case "getSearch" -> {
@@ -112,7 +113,7 @@ public class LegiscanClient {
                 if (cmd.hasOption("id"))
                     System.out.println(outputMapper.writeValueAsString(service.getSearch(Integer.parseInt(cmd.getOptionValue("id")), query, page)));
                 else
-                    System.out.println(outputMapper.writeValueAsString(service.getSearch(cmd.getOptionValue("state"), query,
+                    System.out.println(outputMapper.writeValueAsString(service.getSearch(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")), query,
                             Integer.parseInt(cmd.getOptionValue("year", "2")), page)));
             }
             case "getSearchRaw" -> {
@@ -121,12 +122,12 @@ public class LegiscanClient {
                 if (cmd.hasOption("id"))
                     System.out.println(outputMapper.writeValueAsString(service.getSearchRaw(Integer.parseInt(cmd.getOptionValue("id")), query, page)));
                 else
-                    System.out.println(outputMapper.writeValueAsString(service.getSearchRaw(cmd.getOptionValue("state"), query,
+                    System.out.println(outputMapper.writeValueAsString(service.getSearchRaw(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")), query,
                             Integer.parseInt(cmd.getOptionValue("year", "2")),
                             cmd.hasOption("id") ? Integer.parseInt(cmd.getOptionValue("id")) : null,
                             page)));
             }
-            case "getDatasetList" -> System.out.println(outputMapper.writeValueAsString(service.getDatasetList(cmd.getOptionValue("state"),
+            case "getDatasetList" -> System.out.println(outputMapper.writeValueAsString(service.getDatasetList(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")),
                     cmd.hasOption("year") ? Integer.parseInt(cmd.getOptionValue("year")) : null)));
             case "getDataset" -> System.out.println(outputMapper.writeValueAsString(service.getDataset(
                     Integer.parseInt(cmd.getOptionValue("id")),

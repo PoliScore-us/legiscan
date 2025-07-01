@@ -34,6 +34,7 @@ import us.poliscore.legiscan.view.LegiscanResponse;
 import us.poliscore.legiscan.view.LegiscanRollCallView;
 import us.poliscore.legiscan.view.LegiscanSessionView;
 import us.poliscore.legiscan.view.LegiscanSponsoredBillView;
+import us.poliscore.legiscan.view.LegiscanState;
 import us.poliscore.legiscan.view.LegiscanSupplementView;
 
 /**
@@ -203,7 +204,7 @@ public class CachedLegiscanService extends LegiscanService {
      * @param special
      */
     @SneakyThrows
-    public CachedLegiscanDataset cacheDataset(String state, int year, boolean special) {
+    public CachedLegiscanDataset cacheDataset(LegiscanState state, int year, boolean special) {
 		List<LegiscanDatasetView> datasets = getDatasetList(state, year);
         
         for (var dataset : datasets)
@@ -215,11 +216,11 @@ public class CachedLegiscanService extends LegiscanService {
         
         throw new RuntimeException("Dataset not found!");
 	}
-    public CachedLegiscanDataset cacheDataset(String state, int year) { return cacheDataset(state,year,false); }
+    public CachedLegiscanDataset cacheDataset(LegiscanState state, int year) { return cacheDataset(state,year,false); }
 
     @Override
-    public List<LegiscanSessionView> getSessionList(String state) {
-        String url = buildUrl("getSessionList", "state", state);
+    public List<LegiscanSessionView> getSessionList(LegiscanState state) {
+        String url = buildUrl("getSessionList", "state", state.getAbbreviation());
         String cacheKey = cacheKeyFromUrl(url);
 
         LegiscanResponse response = getOrRequest(
@@ -242,8 +243,8 @@ public class CachedLegiscanService extends LegiscanService {
     }
     
     @Override
-    public LegiscanMasterListView getMasterList(String stateCode) {
-        String url = buildUrl("getMasterList", "state", stateCode);
+    public LegiscanMasterListView getMasterList(LegiscanState state) {
+        String url = buildUrl("getMasterList", "state", state.getAbbreviation());
         String cacheKey = cacheKeyFromUrl(url);
 
         LegiscanResponse response = getOrRequest(
@@ -254,8 +255,8 @@ public class CachedLegiscanService extends LegiscanService {
     }
     
     @Override
-    public LegiscanMasterListView getMasterListRaw(String stateCode) {
-        String url = buildUrl("getMasterListRaw", "state", stateCode);
+    public LegiscanMasterListView getMasterListRaw(LegiscanState state) {
+        String url = buildUrl("getMasterListRaw", "state", state.getAbbreviation());
         String cacheKey = cacheKeyFromUrl(url);
 
         LegiscanResponse response = getOrRequest(
@@ -354,8 +355,8 @@ public class CachedLegiscanService extends LegiscanService {
     }
     
     @Override
-    public List<LegiscanDatasetView> getDatasetList(String state, Integer year) {
-        String url = buildUrl("getDatasetList", "state", state, "year", String.valueOf(year));
+    public List<LegiscanDatasetView> getDatasetList(LegiscanState state, Integer year) {
+        String url = buildUrl("getDatasetList", "state", state.getAbbreviation(), "year", String.valueOf(year));
         String cacheKey = cacheKeyFromUrl(url);
 
         LegiscanResponse response = getOrRequest(
