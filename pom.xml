@@ -28,17 +28,17 @@
 	</licenses>
 	<developers>
 	  <developer>
-	    <id>rrowlands</id>
-	    <name>Richard Rowlands</name>
-	    <email>rrowlands@hextechstudios.net</email>
+	    <id>pissedoffcitizen</id>
+	    <name>PissedOffCitizen</name>
+	    <email>admin@hextechstudios.net</email>
 	    <url>https://poliscore.us</url>
 	    <roles><role>developer</role></roles>
 	  </developer>
 	</developers>
 	<scm>
-	  <connection>scm:git:git://github.com/rrowlands/legiscan.git</connection>
-	  <developerConnection>scm:git:ssh://github.com/rrowlands/legiscan.git</developerConnection>
-	  <url>https://github.com/rrowlands/legiscan</url>
+	  <connection>scm:git:git://github.com/pissedoffcitizen/legiscan.git</connection>
+	  <developerConnection>scm:git:ssh://github.com/pissedoffcitizen/legiscan.git</developerConnection>
+	  <url>https://github.com/pissedoffcitizen/legiscan</url>
 	</scm>
 
 	<dependencies>

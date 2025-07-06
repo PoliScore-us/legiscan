@@ -20,7 +20,7 @@ public class LegiscanHistoryView {
     private String action;
 
     @JsonProperty("chamber")
-    private String chamber;
+    private LegiscanChamber chamber;
 
     @JsonProperty("chamber_id")
     private Integer chamberId;
