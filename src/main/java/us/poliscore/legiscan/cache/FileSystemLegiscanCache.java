@@ -1,27 +1,24 @@
 package us.poliscore.legiscan.cache;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import us.poliscore.legiscan.service.CachedLegiscanService;
-import us.poliscore.legiscan.view.LegiscanResponse;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import us.poliscore.legiscan.service.CachedLegiscanService;
+import us.poliscore.legiscan.view.LegiscanResponse;
 
 public class FileSystemLegiscanCache implements LegiscanCache {
 
-    private static final Logger LOGGER = Logger.getLogger(FileSystemLegiscanCache.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(FileSystemLegiscanCache.class.getName());
 
     private final File baseDir;
     private final ObjectMapper objectMapper;
@@ -58,7 +55,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
             CachedEntry entry = objectMapper.readValue(data, CachedEntry.class);
 
             if (entry.isExpired()) {
-                LOGGER.fine("Cache expired for key: " + key);
+                LOGGER.trace("Cache expired for key: " + key);
                 file.delete(); // Clean up expired file
                 return Optional.empty();
             }
@@ -67,7 +64,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
             return Optional.of(value);
 
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to read cache for key: " + key, e);
+            LOGGER.warn("Failed to read cache for key: " + key, e);
             return Optional.empty();
         }
     }
@@ -91,7 +88,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
             return Optional.of(entry);
 
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to read cache for key: " + key, e);
+            LOGGER.warn("Failed to read cache for key: " + key, e);
             return Optional.empty();
         }
     }
@@ -108,7 +105,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
             CachedEntry entry = new CachedEntry(value, Instant.now().getEpochSecond(), ttlSecs);
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, entry);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to write cache for key: " + key, e);
+            LOGGER.warn("Failed to write cache for key: " + key, e);
         }
     }
     
@@ -123,9 +120,9 @@ public class FileSystemLegiscanCache implements LegiscanCache {
         if (file.exists()) {
             try {
                 Files.delete(file.toPath());
-                LOGGER.fine("Cache file deleted for key: " + cacheKey);
+                LOGGER.trace("Cache file deleted for key: " + cacheKey);
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Failed to delete cache file for key: " + cacheKey, e);
+                LOGGER.warn("Failed to delete cache file for key: " + cacheKey, e);
             }
         }
     }

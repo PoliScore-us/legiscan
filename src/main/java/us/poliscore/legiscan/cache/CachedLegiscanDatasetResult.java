@@ -5,7 +5,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,11 +22,10 @@ import us.poliscore.legiscan.view.LegiscanDatasetView;
 import us.poliscore.legiscan.view.LegiscanPeopleView;
 import us.poliscore.legiscan.view.LegiscanResponse;
 import us.poliscore.legiscan.view.LegiscanRollCallView;
-import us.poliscore.legiscan.view.LegiscanSessionView;
 
 public class CachedLegiscanDatasetResult {
 	
-	private static final Logger LOGGER = Logger.getLogger(CachedLegiscanDatasetResult.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CachedLegiscanDatasetResult.class);
 	
 	@Getter
 	protected CachedLegiscanService legiscan;
@@ -56,12 +57,12 @@ public class CachedLegiscanDatasetResult {
 	 */
 	public void update()
 	{
-		LOGGER.info("Updating dataset [" + dataset.getSessionName() + "] from Legiscan.");
+		LOGGER.debug("Updating dataset [" + dataset.getSessionName() + "] from Legiscan.");
 		
 		bulkLoad();
 		updateBills();
 		
-		LOGGER.info("Dataset [" + dataset.getSessionName() + "] successfully updated.");
+		LOGGER.debug("Dataset [" + dataset.getSessionName() + "] successfully updated.");
 	}
 	
 	/**
@@ -177,7 +178,7 @@ public class CachedLegiscanDatasetResult {
     			count++;
     		}
     	}
-    	LOGGER.info("Updating bills. Will fetch " + count + " bills from Legiscan.");
+    	LOGGER.debug("Updating bills. Will fetch " + count + " bills from Legiscan.");
     	
     	// Do it
     	for (var summary : masterlist.getBills().values())

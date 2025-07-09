@@ -9,8 +9,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,7 +45,7 @@ import us.poliscore.legiscan.view.LegiscanSupplementView;
  */
 public class LegiscanService {
 
-	private static final Logger LOGGER = Logger.getLogger(LegiscanService.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(LegiscanService.class.getName());
 	
     protected static final String BASE_URL = "https://api.legiscan.com/";
     protected static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
@@ -84,7 +86,7 @@ public class LegiscanService {
         var resp = makeRequest(new TypeReference<LegiscanResponse>() {}, url);
         
         if (resp.getAlert() != null) {
-        	LOGGER.severe("Alert response returned from legiscan [" + objectMapper.writeValueAsString(resp) + "].");
+        	LOGGER.error("Alert response returned from legiscan [" + objectMapper.writeValueAsString(resp) + "].");
         	throw new LegiscanException("Alert response returned from legiscan [" + resp.getAlert().getMessage() + "]");
         }
         
@@ -93,11 +95,11 @@ public class LegiscanService {
 
     public <T> T makeRequest(TypeReference<T> typeRef, String url) {
         try {
-            LOGGER.fine("Making Legiscan API request to: " + url);
+            LOGGER.debug("Making Legiscan API request to: " + url);
             byte[] responseBytes = makeRequestRaw(url);
             return objectMapper.readValue(responseBytes, typeRef);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error during Legiscan API call to: " + url, e);
+            LOGGER.error("Error during Legiscan API call to: " + url, e);
             throw new LegiscanException("Failed to call Legiscan API: " + url, e);
         }
     }
@@ -119,7 +121,7 @@ public class LegiscanService {
             }
 
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error during raw Legiscan API call to: " + url, e);
+            LOGGER.error("Error during raw Legiscan API call to: " + url, e);
             throw new LegiscanException("Failed to call Legiscan API (raw): " + url, e);
         }
     }

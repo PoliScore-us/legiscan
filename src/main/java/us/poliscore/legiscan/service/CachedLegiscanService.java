@@ -8,9 +8,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -46,7 +47,7 @@ import us.poliscore.legiscan.view.LegiscanSupplementView;
  */
 public class CachedLegiscanService extends LegiscanService {
 
-    private static final Logger LOGGER = Logger.getLogger(CachedLegiscanService.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(CachedLegiscanService.class);
 
     @Getter
     protected final LegiscanCache cache;
@@ -122,11 +123,11 @@ public class CachedLegiscanService extends LegiscanService {
     	var cached = cache.getOrExpire(cacheKey).orElse(null);
     	
     	if (cached != null) {
-    		LOGGER.fine("Pulling object [" + cacheKey + "] from cache.");
+    		LOGGER.trace("Pulling object [" + cacheKey + "] from cache.");
     		return cached;
     	}
     	
-    	LOGGER.info("Fetching object [" + cacheKey + "] from Legiscan.");
+    	LOGGER.debug("Fetching object [" + cacheKey + "] from Legiscan.");
         LegiscanResponse value = makeRequest(url);
         cache.put(cacheKey, value);
         return value;

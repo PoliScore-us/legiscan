@@ -9,7 +9,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum LegiscanChamber {
 	SENATE("S"),
 	HOUSE("H"),
-	UNICAM("L");
+	UNICAM("L"),
+	NOT_APPLICABLE("");
 	
 	private String code;
 	
@@ -24,9 +25,11 @@ public enum LegiscanChamber {
 
 	@JsonCreator
     public static LegiscanChamber fromCode(String code) {
-        for (LegiscanChamber party : values()) {
-            if (party.code.equalsIgnoreCase(code)) {
-                return party;
+		if (code == null || code.isBlank()) return NOT_APPLICABLE;
+		
+        for (LegiscanChamber chamber : values()) {
+            if (chamber.code.equalsIgnoreCase(code)) {
+                return chamber;
             }
         }
         throw new IllegalArgumentException("Unknown code: " + code);

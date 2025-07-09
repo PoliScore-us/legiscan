@@ -3,7 +3,7 @@ package us.poliscore.legiscan;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled("Because this hits a real Legiscan endpoint, it requires an API key and must be run manually.")
+//@Disabled("Because this hits a real Legiscan endpoint, it requires an API key and must be run manually.")
 public class LegiscanClientIntegrationTest {
 
     private static final String TEST_API_KEY = System.getenv("LEGISCAN_API_KEY");
