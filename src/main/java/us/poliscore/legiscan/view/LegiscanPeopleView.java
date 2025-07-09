@@ -3,6 +3,7 @@ package us.poliscore.legiscan.view;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -25,6 +26,7 @@ public class LegiscanPeopleView {
     @JsonProperty("state_id")
     protected Integer stateId;
     
+    @JsonIgnore
     public LegiscanState getState() {
     	return LegiscanState.fromId(stateId);
     }
@@ -35,6 +37,7 @@ public class LegiscanPeopleView {
     @JsonProperty("party")
     protected String partyCode;
     
+    @JsonIgnore
     public LegiscanParty getParty() {
     	return LegiscanParty.fromValue(partyId);
     }
@@ -45,6 +48,7 @@ public class LegiscanPeopleView {
     @JsonProperty("role")
     protected String roleCode;
     
+    @JsonIgnore
     public LegiscanRole getRole() {
     	return LegiscanRole.fromValue(roleId);
     }

@@ -3,6 +3,7 @@ package us.poliscore.legiscan.view;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -28,6 +29,7 @@ public class LegiscanBillTextView {
     @JsonProperty("type_id")
     protected int typeId;
     
+    @JsonIgnore
     public LegiscanTextType getType() {
     	return LegiscanTextType.fromValue(typeId);
     }
@@ -38,6 +40,7 @@ public class LegiscanBillTextView {
     @JsonProperty("mime_id")
     protected int mimeId;
     
+    @JsonIgnore
     public LegiscanMimeType getMime() {
     	return LegiscanMimeType.fromValue(mimeId);
     }

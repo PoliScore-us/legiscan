@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -47,6 +48,7 @@ public class LegiscanBillView {
     @JsonProperty("status")
     protected Integer statusId;
     
+    @JsonIgnore
     public LegiscanStatus getStatus() {
     	return LegiscanStatus.fromValue(statusId);
     }
@@ -64,6 +66,7 @@ public class LegiscanBillView {
     @JsonProperty("state_id")
     protected Integer stateId;
     
+    @JsonIgnore
     public LegiscanState getState() {
     	return LegiscanState.fromId(stateId);
     }
@@ -77,6 +80,7 @@ public class LegiscanBillView {
     @JsonProperty("bill_type_id")
     protected Integer billTypeId;
     
+    @JsonIgnore
     public LegiscanBillType getBillType() {
     	return LegiscanBillType.fromValue(billTypeId);
     }

@@ -29,8 +29,8 @@ public class LegiscanClientIntegrationTest {
     @Test
     void test_getDataset() throws Exception {
         String[] args = {
-            "-k", TEST_API_KEY,
-            "-op", "getDataset", "--id", "2173", "--access_key", "6DYD6JY3DSquQILTTKn0lM"
+            "-k", TEST_API_KEY, // TODO : The access_key here might rotate regularly?
+            "-op", "getDataset", "--id", "2173", "--access_key", "IcT4OorKGF3nPPBgYTmvv"
         };
         LegiscanClient.main(args);
     }
@@ -38,8 +38,8 @@ public class LegiscanClientIntegrationTest {
     @Test
     void test_getDatasetRaw() throws Exception {
         String[] args = {
-            "-k", TEST_API_KEY,
-            "-op", "getDatasetRaw", "--id", "2173", "--access_key", "6DYD6JY3DSquQILTTKn0lM", "--format", "csv"
+            "-k", TEST_API_KEY, // TODO : The access_key here might rotate regularly?
+            "-op", "getDatasetRaw", "--id", "2173", "--access_key", "IcT4OorKGF3nPPBgYTmvv", "--format", "csv"
         };
         LegiscanClient.main(args);
     }
