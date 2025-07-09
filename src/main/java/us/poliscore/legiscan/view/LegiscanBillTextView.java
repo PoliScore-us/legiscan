@@ -48,6 +48,9 @@ public class LegiscanBillTextView {
     @JsonProperty("text_hash")
     protected String textHash;
 
-    protected String doc; // A base64 encoded string
+    /**
+     * A base64 encoded string. 
+     */
+    protected String doc;
 }
 

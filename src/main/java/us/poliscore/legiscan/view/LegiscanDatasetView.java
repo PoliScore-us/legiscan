@@ -3,8 +3,10 @@ package us.poliscore.legiscan.view;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Data;
 
 @Data
@@ -14,14 +16,14 @@ public class LegiscanDatasetView {
     @JsonProperty("state_id")
     private int stateId;
     
-    public LegiscanState getState() {
-    	return LegiscanState.fromId(stateId);
-    }
+    @JsonIgnore public LegiscanState getState() { return LegiscanState.fromId(stateId); }
 
     @JsonProperty("session_id")
     private int sessionId;
 
-    private int special;
+    @JsonProperty("special")
+    private int specialId;
+    @JsonIgnore public boolean isSpecial() { return specialId == 1; }
 
     @JsonProperty("year_start")
     private int yearStart;

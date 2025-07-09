@@ -15,6 +15,10 @@ public class LegiscanVoteDetailView {
     @JsonProperty("vote_id")
     private Integer voteId;
     
+    public LegiscanVoteStatus getVote() {
+    	return LegiscanVoteStatus.fromValue(voteId);
+    }
+    
     @JsonProperty("vote_text")
     private String voteText;
 }

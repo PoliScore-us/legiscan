@@ -55,7 +55,16 @@ public enum LegiscanState {
     WEST_VIRGINIA("WV"),
     WISCONSIN("WI"),
     WYOMING("WY"),
-	CONGRESS("US");
+	
+    // Congress (not a state but is included in Legiscan "state" codes
+    CONGRESS("US"),
+	
+	// U.S. territories (also not states, but are included for completeness
+    AMERICAN_SAMOA("AS"),
+    GUAM("GU"),
+    NORTHERN_MARIANA_ISLANDS("MP"),
+    PUERTO_RICO("PR"),
+    VIRGIN_ISLANDS("VI");
 
     private final String abbreviation;
 

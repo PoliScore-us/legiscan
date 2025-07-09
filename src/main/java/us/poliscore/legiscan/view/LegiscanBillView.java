@@ -38,6 +38,9 @@ public class LegiscanBillView {
     @JsonProperty("state_link")
     protected String stateLink;
     
+    /**
+     * DEPRECATED DO NOT USE
+     */
     @JsonProperty("completed")
     protected Integer completed;
     

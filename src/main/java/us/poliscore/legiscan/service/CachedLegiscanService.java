@@ -209,7 +209,7 @@ public class CachedLegiscanService extends LegiscanService {
         
         for (var dataset : datasets)
         {
-        	if (dataset.getSpecial() == (special ? 1 : 0)) {
+        	if (dataset.isSpecial() == special) {
         		return cacheDataset(dataset);
         	}
         }
