@@ -1,8 +1,25 @@
 package us.poliscore.legiscan.view;
 
+import java.io.IOException;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import lombok.NoArgsConstructor;
+import us.poliscore.legiscan.view.LegiscanState.LegiscanStateDeserializer;
+import us.poliscore.legiscan.view.LegiscanState.LegiscanStateSerializer;
+
+
+@JsonSerialize(using = LegiscanStateSerializer.class)
+@JsonDeserialize(using = LegiscanStateDeserializer.class)
 public enum LegiscanState {
     ALABAMA("AL"),
     ALASKA("AK"),
@@ -101,5 +118,22 @@ public enum LegiscanState {
             }
         }
         throw new IllegalArgumentException("Unknown abbreviation: " + abbr);
+    }
+    
+    @NoArgsConstructor
+    public static class LegiscanStateDeserializer extends JsonDeserializer<LegiscanState> {
+        @Override
+        public LegiscanState deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+            String abbr = p.getText();
+            return LegiscanState.fromAbbreviation(abbr);
+        }
+    }
+    
+    @NoArgsConstructor
+    public static class LegiscanStateSerializer extends JsonSerializer<LegiscanState> {
+        @Override
+        public void serialize(LegiscanState value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+            gen.writeString(value.toString());
+        }
     }
 }
