@@ -7,10 +7,10 @@ Provides reusable Java utilities for connecting to and fetching data from a remo
 https://legiscan.com/legiscan
 
 The primary offerings of this library are as follows:
-1. [LegiscanService](https://github.com/rrowlands/legiscan/blob/main/src/main/java/us/poliscore/legiscan/service/LegiscanService.java) - A basic communication service which implements the full Legiscan HTTP API
-2. [CachedLegiscanService](https://github.com/rrowlands/legiscan/blob/main/src/main/java/us/poliscore/legiscan/service/CachedLegiscanService.java) - A caching wrapper around the LegiscanService. Extends the default API with the 'cacheDataset' method.
-3. [LegiscanClient](https://github.com/rrowlands/legiscan/blob/main/src/main/java/us/poliscore/legiscan/LegiscanClient.java) - A CLI accessor to the CachedLegiscanService and LegiscanService.
-4. [us.poliscore.legiscan.view](https://github.com/rrowlands/legiscan/blob/main/src/main/java/us/poliscore/legiscan/view) - Java POJOs (Plain Old Java Object) to provide type-safe accessors to the JSON objects
+1. [LegiscanService](https://github.com/poliscore-us/legiscan/blob/main/src/main/java/us/poliscore/legiscan/service/LegiscanService.java) - A basic communication service which implements the full Legiscan HTTP API
+2. [CachedLegiscanService](https://github.com/poliscore-us/legiscan/blob/main/src/main/java/us/poliscore/legiscan/service/CachedLegiscanService.java) - A caching wrapper around the LegiscanService. Extends the default API with the 'cacheDataset' method.
+3. [LegiscanClient](https://github.com/poliscore-us/legiscan/blob/main/src/main/java/us/poliscore/legiscan/LegiscanClient.java) - A CLI accessor to the CachedLegiscanService and LegiscanService.
+4. [us.poliscore.legiscan.view](https://github.com/poliscore-us/legiscan/blob/main/src/main/java/us/poliscore/legiscan/view) - Java POJOs (Plain Old Java Object) to provide type-safe accessors to the JSON objects
 
 A 'mvn install' on the root produces two separate jars:
 1. legiscan-version.jar - A traditional Java jar for usage as a dependency in a Java project
@@ -95,7 +95,7 @@ This library has been published to Maven central and can be added as a library d
 </dependency>
 ```
 
-This is especially useful for leveraging the built-in [us.poliscore.legiscan.view](https://github.com/rrowlands/legiscan/blob/main/src/main/java/us/poliscore/legiscan/view) POJOs for type-safe usecases.
+This is especially useful for leveraging the built-in [us.poliscore.legiscan.view](https://github.com/poliscore-us/legiscan/blob/main/src/main/java/us/poliscore/legiscan/view) POJOs for type-safe usecases.
 
 ## About the Author
 
