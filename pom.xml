@@ -36,9 +36,9 @@
 	  </developer>
 	</developers>
 	<scm>
-	  <connection>scm:git:git://github.com/pissedoffcitizen/legiscan.git</connection>
-	  <developerConnection>scm:git:ssh://github.com/pissedoffcitizen/legiscan.git</developerConnection>
-	  <url>https://github.com/pissedoffcitizen/legiscan</url>
+	  <connection>scm:git:git://github.com/poliscore-us/legiscan.git</connection>
+	  <developerConnection>scm:git:ssh://github.com/poliscore-us/legiscan.git</developerConnection>
+	  <url>https://github.com/poliscore-us/legiscan</url>
 	</scm>
 
 	<dependencies>
