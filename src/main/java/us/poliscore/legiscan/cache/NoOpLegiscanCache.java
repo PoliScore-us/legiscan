@@ -8,11 +8,6 @@ import us.poliscore.legiscan.view.LegiscanResponse;
 
 public class NoOpLegiscanCache implements LegiscanCache {
 
-    @Override
-    public void put(String key, Object value) {
-        // no-op
-    }
-
 	@Override
 	public void put(String key, Object value, long ttlSecs) {
 		// no-op
@@ -34,7 +29,7 @@ public class NoOpLegiscanCache implements LegiscanCache {
 	}
 
 	@Override
-	public Optional<CachedEntry> peek(String key) {
+	public Optional<CachedEntry> peekEntry(String key) {
 		return Optional.empty();
 	}
 
@@ -46,5 +41,15 @@ public class NoOpLegiscanCache implements LegiscanCache {
 	@Override
 	public <T> Optional<T> getOrExpire(String key, TypeReference<T> typeRef) {
 		return Optional.empty();
+	}
+
+	@Override
+	public <T> Optional<T> peek(String key, TypeReference<T> typeRef) {
+		return Optional.empty();
+	}
+
+	@Override
+	public void put(String key, Object value, String objectHash, long ttlSecs) {
+		// no-op
 	}
 }

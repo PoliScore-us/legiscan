@@ -95,7 +95,6 @@ public class LegiscanService {
 
     public <T> T makeRequest(TypeReference<T> typeRef, String url) {
         try {
-            LOGGER.debug("Making Legiscan API request to: " + url);
             byte[] responseBytes = makeRequestRaw(url);
             return objectMapper.readValue(responseBytes, typeRef);
         } catch (Exception e) {
@@ -112,6 +111,7 @@ public class LegiscanService {
                     .GET()
                     .build();
 
+            LOGGER.info("Making Legiscan API request to: " + url);
             HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
             if (response.statusCode() == 200) {

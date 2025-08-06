@@ -3,6 +3,8 @@ package us.poliscore.legiscan.cache;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,9 +16,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.Getter;
 import lombok.SneakyThrows;
+import lombok.val;
 import net.lingala.zip4j.ZipFile;
 import us.poliscore.legiscan.PoliscoreLegiscanUtil;
 import us.poliscore.legiscan.service.CachedLegiscanService;
+import us.poliscore.legiscan.service.ExpirationPolicy;
 import us.poliscore.legiscan.view.LegiscanBillView;
 import us.poliscore.legiscan.view.LegiscanDatasetView;
 import us.poliscore.legiscan.view.LegiscanPeopleView;
@@ -76,7 +80,7 @@ public class CachedLegiscanDatasetResult {
 	protected void bulkLoad()
 	{
 
-        byte[] zipBytes = legiscan.getDatasetRaw(dataset.getSessionId(), dataset.getAccessKey(), "json");
+        byte[] zipBytes = legiscan.getDatasetRaw(dataset.getSessionId(), dataset.getAccessKey(), "json", dataset.getDatasetHash());
         		
         // Write zipBytes to a temporary file
         Path tempZip = Files.createTempFile("dataset-", ".zip");
@@ -103,8 +107,9 @@ public class CachedLegiscanDatasetResult {
                 	var person = resp.getPerson();
                 	
                     String cacheKey = LegiscanPeopleView.getCacheKey(person.getPeopleId());
+                    val expiration = ExpirationPolicy.weekly().getTtl(Instant.now(), cacheKey);
                 	
-                    legiscan.getCache().put(cacheKey, resp);
+                    legiscan.getCache().put(cacheKey, resp, expiration.getSeconds());
                 	people.put(person.getPeopleId(), person);
                 }
                 
@@ -120,9 +125,10 @@ public class CachedLegiscanDatasetResult {
                 	// than what we got from the bulk upload. This should only ever happen with bills, since the refresh frequency for votes
                 	// and people is the same for the rest of their API.
                 	String cacheKey = LegiscanBillView.getCacheKey(bill.getBillId());
-                	var cached = legiscan.getCache().peek(cacheKey).orElse(null);
+                	var cached = legiscan.getCache().peekEntry(cacheKey).orElse(null);
             		if (cached == null) {
-	                    legiscan.getCache().put(cacheKey, resp);
+            			val ttl = ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey);
+	                    legiscan.getCache().put(cacheKey, resp, ttl.getSeconds());
 	                	bills.put(bill.getBillId(), bill);
             		} else {
             			bills.put(bill.getBillId(), objectMapper.convertValue(cached.getValue(), new TypeReference<LegiscanResponse>() {}).getBill());
@@ -137,7 +143,7 @@ public class CachedLegiscanDatasetResult {
                 	
                     String cacheKey = LegiscanRollCallView.getCacheKey(rollCall.getRollCallId());
                 	
-                    legiscan.getCache().put(cacheKey, resp);
+                    legiscan.getCache().put(cacheKey, resp, -1);
                 	votes.put(rollCall.getRollCallId(), rollCall);
                 }
             }
@@ -170,7 +176,7 @@ public class CachedLegiscanDatasetResult {
     	{
             String cacheKey = LegiscanBillView.getCacheKey(summary.getBillId());
     		
-    		var cached = legiscan.getCache().peek(cacheKey).orElse(null);
+    		var cached = legiscan.getCache().peekEntry(cacheKey).orElse(null);
     		var cachedVal = cached == null ? null : objectMapper.convertValue(cached.getValue(), new TypeReference<LegiscanResponse>() {});
     		
     		if (cached == null || cachedVal.getBill() == null || !summary.getChangeHash().equals(cachedVal.getBill().getChangeHash()))
@@ -178,14 +184,14 @@ public class CachedLegiscanDatasetResult {
     			count++;
     		}
     	}
-    	LOGGER.debug("Updating bills. Will fetch " + count + " bills from Legiscan.");
+    	LOGGER.info("Updating bills. Will fetch " + count + " bills from Legiscan.");
     	
     	// Do it
     	for (var summary : masterlist.getBills().values())
     	{
             String cacheKey = LegiscanBillView.getCacheKey(summary.getBillId());
     		
-    		var cached = legiscan.getCache().peek(cacheKey).orElse(null);
+    		var cached = legiscan.getCache().peekEntry(cacheKey).orElse(null);
     		var cachedVal = cached == null ? null : objectMapper.convertValue(cached.getValue(), new TypeReference<LegiscanResponse>() {});
     		
     		if (cached == null || cachedVal.getBill() == null || !summary.getChangeHash().equals(cachedVal.getBill().getChangeHash())) {
@@ -194,7 +200,7 @@ public class CachedLegiscanDatasetResult {
     			bills.put(bill.getBillId(), bill);
     		} else if (cached.isExpired()) {
     			// Refresh the TTL here since we just verified with the masterlist that its latest
-    			legiscan.getCache().put(cacheKey, cachedVal);
+    			legiscan.getCache().put(cacheKey, cachedVal, ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey).getSeconds());
     		}
     	}
     }

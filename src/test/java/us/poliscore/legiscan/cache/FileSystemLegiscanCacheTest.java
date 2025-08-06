@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
@@ -50,7 +51,7 @@ public class FileSystemLegiscanCacheTest {
         String key = "testKey";
         Map<String, String> value = Map.of("foo", "bar");
 
-        cache.put(key, value);
+        cache.put(key, value, 10);
 
         Optional<Map<String, String>> result = cache.getOrExpire(key, new TypeReference<>() {});
         assertTrue(result.isPresent());
@@ -64,8 +65,8 @@ public class FileSystemLegiscanCacheTest {
         Map<String, String> first = Map.of("a", "1");
         Map<String, String> second = Map.of("a", "2");
 
-        cache.put(key, first);
-        cache.put(key, second);
+        cache.put(key, first, 10);
+        cache.put(key, second, 10);
 
         Optional<Map<String, String>> result = cache.getOrExpire(key, new TypeReference<>() {});
         assertTrue(result.isPresent());

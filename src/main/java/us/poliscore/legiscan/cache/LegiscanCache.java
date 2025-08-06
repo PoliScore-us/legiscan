@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import us.poliscore.legiscan.cache.LegiscanCache.CachedEntry;
 import us.poliscore.legiscan.view.LegiscanResponse;
 
 public interface LegiscanCache {
@@ -18,7 +19,9 @@ public interface LegiscanCache {
      * @param key
      * @return
      */
-    public Optional<CachedEntry> peek(String key);
+    public <T> Optional<T> peek(String key, TypeReference<T> typeRef);
+    
+    public Optional<CachedEntry> peekEntry(String key);
     
     /**
      * Attempts to fetch the object from the cache. If the object is expired, it will be cleared out from the cache and Optional.empty() will be returned.
@@ -37,9 +40,9 @@ public interface LegiscanCache {
      */
     public <T> Optional<T> getOrExpire(String key, TypeReference<T> typeRef);
     
-    public void put(String key, Object value);
-    
     public void put(String key, Object value, long ttlSecs);
+    
+    public void put(String key, Object value, String objectHash, long ttlSecs);
     
     /**
      * Returns true if and only if the cache contains a value for the given key and the value is not expired.
@@ -58,6 +61,7 @@ public interface LegiscanCache {
         private Object value;
         private long timestamp;
         private long ttlSecs;
+        private String objectHash;
         
         @JsonIgnore
         public boolean isExpired() {

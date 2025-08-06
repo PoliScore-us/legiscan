@@ -45,7 +45,6 @@ public class LegiscanClient {
 
         options.addOption("c", "no_cache", false, "Disable caching (enabled by default)");
         options.addOption("cd", "cache_dir", true, "Directory to use for cached data. (default: <user.home>/appdata/poliscore/legiscan)");
-        options.addOption("ct", "cache_ttl", true, "Time to live for cached items in seconds (default: 14400)");
 
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
@@ -73,10 +72,6 @@ public class LegiscanClient {
 
             if (cmd.hasOption("cache_dir")) {
                 builder.withCacheDirectory(new File(cmd.getOptionValue("cache_dir")));
-            }
-
-            if (cmd.hasOption("cache_ttl")) {
-                builder.withCacheTttl(Integer.parseInt(cmd.getOptionValue("cache_ttl")));
             }
 
             service = builder.build();

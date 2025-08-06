@@ -7,6 +7,9 @@ import org.junit.jupiter.api.Test;
 public class LegiscanClientIntegrationTest {
 
     private static final String TEST_API_KEY = System.getenv("LEGISCAN_API_KEY");
+    
+    // The access key here rotates regularly so you'll also need to get that from legiscan before running this
+    private static final String ACCESS_KEY = "your_key_here";
 
     @Test
     void test_getDatasetList() throws Exception {
@@ -30,7 +33,7 @@ public class LegiscanClientIntegrationTest {
     void test_getDataset() throws Exception {
         String[] args = {
             "-k", TEST_API_KEY, // TODO : The access_key here rotates regularly
-            "-op", "getDataset", "--id", "2173", "--access_key", "xxx"
+            "-op", "getDataset", "--id", "2173", "--access_key", ACCESS_KEY
         };
         LegiscanClient.main(args);
     }
@@ -39,7 +42,7 @@ public class LegiscanClientIntegrationTest {
     void test_getDatasetRaw() throws Exception {
         String[] args = {
             "-k", TEST_API_KEY, // TODO : The access_key here rotates regularly
-            "-op", "getDatasetRaw", "--id", "2173", "--access_key", "xxx", "--format", "csv"
+            "-op", "getDatasetRaw", "--id", "2173", "--access_key", ACCESS_KEY, "--format", "csv"
         };
         LegiscanClient.main(args);
     }

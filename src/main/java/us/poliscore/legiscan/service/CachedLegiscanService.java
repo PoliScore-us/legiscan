@@ -4,10 +4,13 @@ import java.io.File;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
@@ -21,6 +24,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.Getter;
 import lombok.SneakyThrows;
+import lombok.val;
 import us.poliscore.legiscan.cache.CachedLegiscanDatasetResult;
 import us.poliscore.legiscan.cache.FileSystemLegiscanCache;
 import us.poliscore.legiscan.cache.LegiscanCache;
@@ -48,7 +52,7 @@ import us.poliscore.legiscan.view.LegiscanSupplementView;
 public class CachedLegiscanService extends LegiscanService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CachedLegiscanService.class);
-
+    
     @Getter
     protected final LegiscanCache cache;
 
@@ -66,7 +70,6 @@ public class CachedLegiscanService extends LegiscanService {
     	protected ObjectMapper objectMapper;
     	protected LegiscanCache cache;
     	protected File cacheDirectory;
-    	protected int ttl = 14400; // Default ttl is 4 hours
 
         public Builder(String apiKey) {
             this.apiKey = apiKey;
@@ -86,15 +89,6 @@ public class CachedLegiscanService extends LegiscanService {
             this.cacheDirectory = dir;
             return this;
         }
-        
-        /**
-         * @param ttl Sets the time to live (in seconds) for non-static urls. Data will not be fetched more than the specified ttl. Default is 4 hours. Static objects will never be re-fetched.
-         * @return
-         */
-        public Builder withCacheTttl(int ttl) {
-        	this.ttl= ttl;
-        	return this;
-        }
 
         public CachedLegiscanService build() {
             if (this.objectMapper == null) {
@@ -109,8 +103,7 @@ public class CachedLegiscanService extends LegiscanService {
                         ? cacheDirectory
                         : new File(System.getProperty("user.home") + "/appdata/poliscore/legiscan");
                 
-                // default ttl is 4 hours
-                this.cache = new FileSystemLegiscanCache(dir, this.objectMapper, ttl);
+                this.cache = new FileSystemLegiscanCache(dir, this.objectMapper);
             }
 
             var client = new CachedLegiscanService(apiKey, objectMapper, cache);
@@ -119,17 +112,21 @@ public class CachedLegiscanService extends LegiscanService {
         }
     }
     
-    protected LegiscanResponse getOrRequest(String cacheKey, String url) {
-    	var cached = cache.getOrExpire(cacheKey).orElse(null);
+    protected LegiscanResponse getOrRequest(String cacheKey, String url, ExpirationPolicy ep) {
+    	val metadata = cache.peekEntry(cacheKey);
+        val cached = cache.peek(cacheKey, new TypeReference<LegiscanResponse>() {});
     	
-    	if (cached != null) {
+    	if (cached.isPresent() && !metadata.get().isExpired()) {
     		LOGGER.trace("Pulling object [" + cacheKey + "] from cache.");
-    		return cached;
+    		return cached.get();
     	}
     	
     	LOGGER.debug("Fetching object [" + cacheKey + "] from Legiscan.");
         LegiscanResponse value = makeRequest(url);
-        cache.put(cacheKey, value);
+        
+        val expiration = ep.getTtl(Instant.now(), cacheKey);
+        cache.put(cacheKey, value, expiration == null ? -1 : expiration.getSeconds());
+        
         return value;
     }
 
@@ -170,14 +167,6 @@ public class CachedLegiscanService extends LegiscanService {
         } catch (Exception e) {
             throw new RuntimeException("Invalid URL: " + url, e);
         }
-    }
-    
-    public static boolean isCacheKeyStatic(String cacheKey) {
-    	var op = cacheKey.split("/")[0].toLowerCase();
-    	
-    	return ArrayUtils.contains(new String[] { 
-    			"getbilltext", "getamendment", "getsupplement", "getrollcall"
-    	}, op);
     }
     
     /**
@@ -226,7 +215,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.daily()
         );
         return response.getSessions();
     }
@@ -238,7 +228,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.hourly()
         );
         return response.getMasterlist();
     }
@@ -250,7 +241,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.hourly()
         );
         return response.getMasterlist();
     }
@@ -262,7 +254,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.hourly()
         );
         return response.getMasterlist();
     }
@@ -274,7 +267,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.hourly()
         );
         return response.getMasterlist();
     }
@@ -285,7 +279,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.fixedDuration(Duration.ofHours(3))
         );
         
         return response.getBill();
@@ -298,7 +293,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.never()
         );
         
         return response.getText();
@@ -311,7 +307,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.never()
         );
         
         return response.getAmendment();
@@ -324,7 +321,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.never()
         );
         
         return response.getSupplement();
@@ -337,7 +335,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.never()
         );
         return response.getRollcall();
     }
@@ -349,7 +348,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.weekly()
         );
         
         return response.getPerson();
@@ -357,42 +357,97 @@ public class CachedLegiscanService extends LegiscanService {
     
     @Override
     public List<LegiscanDatasetView> getDatasetList(LegiscanState state, Integer year) {
-        String url = buildUrl("getDatasetList", "state", state.getAbbreviation(), "year", String.valueOf(year));
+    	String url;
+    	
+    	if (state != null && year != null) {
+    		url = buildUrl("getDatasetList", "state", state.getAbbreviation(), "year", String.valueOf(year));
+    	} else if (state != null && year == null) {
+    		url = buildUrl("getDatasetList", "state", state.getAbbreviation());
+    	} else if (state == null && year != null) {
+    		url = buildUrl("getDatasetList", "year", String.valueOf(year));
+    	} else {
+    		url = buildUrl("getDatasetList");
+    	}
+    	
         String cacheKey = cacheKeyFromUrl(url);
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.weekly()
         );
         
         return response.getDatasetlist();
     }
     
-    @Override
-    public LegiscanDatasetView getDataset(int sessionId, String accessKey, String format) {
+    @Override public LegiscanDatasetView getDataset(int sessionId, String accessKey, String format) { return getDataset(sessionId, accessKey, format, null); }
+    public LegiscanDatasetView getDataset(int sessionId, String accessKey, String format, String datasetHash) {
         String url = buildUrl("getDataset", "id", String.valueOf(sessionId), "access_key", accessKey, "format", format);
         String cacheKey = cacheKeyFromUrl(url);
 
-        LegiscanResponse response = getOrRequest(
-                cacheKey,
-                url
-        );
+        val metadata = cache.peekEntry(cacheKey);
+        val cached = cache.peek(cacheKey, new TypeReference<LegiscanResponse>() {});
+    	
+    	if (cached.isPresent() && !metadata.get().isExpired()) {
+    		LOGGER.trace("Pulling object [" + cacheKey + "] from cache.");
+    		return cached.get().getDataset();
+    	}
+    	
+    	// Legiscan requires that we check the change hash against the masterlist here
+    	if (cached.isPresent()) {
+    		if (datasetHash == null) {
+	    		val masterlist = this.getDatasetList(null, null);
+	    		datasetHash = masterlist.stream().filter(ds -> Objects.equals(ds.getSessionId(), sessionId)).findFirst().get().getDatasetHash();
+    		}
+    		
+    		// If the latest hash equals the hash of the object we already have, then we know the dataset has not changed and we don't need to download it again.
+    		if (cached.get().getDataset().getDatasetHash().equals(datasetHash))
+    			return cached.get().getDataset();
+    	}
+    	
+    	LOGGER.debug("Fetching object [" + cacheKey + "] from Legiscan.");
+        LegiscanResponse value = makeRequest(url);
         
-        return response.getDataset();
+        val ep = ExpirationPolicy.weekly();
+        val ttl = ep.getTtl(Instant.now(), cacheKey);
+        cache.put(cacheKey, value, ttl == null ? -1 : ttl.getSeconds());
+        
+        return value.getDataset();
     }
     
-    @Override
-    public byte[] getDatasetRaw(int sessionId, String accessKey, String format) {
+    @Override public byte[] getDatasetRaw(int sessionId, String accessKey, String format) { return getDatasetRaw(sessionId, accessKey, format, null); }
+    public byte[] getDatasetRaw(int sessionId, String accessKey, String format, String datasetHash) {
         String url = buildUrl("getDatasetRaw", "id", String.valueOf(sessionId), "access_key", accessKey, "format", format);
         String cacheKey = cacheKeyFromUrl(url);
         
-        var typeRef = new TypeReference<byte[]>(){};
+        val metadata = cache.peekEntry(cacheKey);
+        val cached = cache.peek(cacheKey, new TypeReference<byte[]>() {});
+    	
+    	if (cached.isPresent() && !metadata.get().isExpired()) {
+    		LOGGER.trace("Pulling object [" + cacheKey + "] from cache.");
+    		return cached.get();
+    	}
+    	
+    	// Legiscan requires that we check the change hash against the masterlist here
+    	if (cached.isPresent()) {
+    		if (datasetHash == null) {
+	    		val masterlist = this.getDatasetList(null, null);
+	    		datasetHash = masterlist.stream().filter(ds -> Objects.equals(ds.getSessionId(), sessionId)).findFirst().get().getDatasetHash();
+    		}
+    		
+    		// If the latest hash equals the hash of the object we already have, then we know the dataset has not changed and we don't need to download it again.
+    		if (Objects.equals(metadata.get().getObjectHash(), datasetHash))
+    			return cached.get();
+    	}
+    	
+    	LOGGER.debug("Fetching object [" + cacheKey + "] from Legiscan.");
+        byte[] value = makeRequestRaw(url);
         
-        return cache.getOrExpire(cacheKey, typeRef).orElseGet(() -> {
-            byte[] value = makeRequestRaw(url);
-            cache.put(cacheKey, value);
-            return value;
-        });
+        val ep = ExpirationPolicy.weekly();
+        val expiration = ep.getTtl(Instant.now(), cacheKey);
+        cache.put(cacheKey, value, datasetHash, expiration == null ? -1 : expiration.getSeconds());
+        
+        return value;
     }
 
     @Override
@@ -402,7 +457,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.weekly()
         );
         
         return response.getSessionpeople().getPeople();
@@ -415,7 +471,8 @@ public class CachedLegiscanService extends LegiscanService {
 
         LegiscanResponse response = getOrRequest(
                 cacheKey,
-                url
+                url,
+                ExpirationPolicy.daily()
         );
         
         return response.getSponsoredbills();
@@ -426,7 +483,12 @@ public class CachedLegiscanService extends LegiscanService {
         String url = buildUrl("getMonitorList", "record", record != null ? record : "current");
         String cacheKey = cacheKeyFromUrl(url);
 
-        LegiscanResponse response = getOrRequest(cacheKey, url);
+        LegiscanResponse response = getOrRequest(
+                cacheKey,
+                url,
+                ExpirationPolicy.hourly()
+        );
+        
         return response.getMonitorlist();
     }
 
@@ -435,7 +497,12 @@ public class CachedLegiscanService extends LegiscanService {
         String url = buildUrl("getMonitorListRaw", "record", record != null ? record : "current");
         String cacheKey = cacheKeyFromUrl(url);
 
-        LegiscanResponse response = getOrRequest(cacheKey, url);
+        LegiscanResponse response = getOrRequest(
+                cacheKey,
+                url,
+                ExpirationPolicy.hourly()
+        );
+        
         return response.getMonitorlist();
     }
 

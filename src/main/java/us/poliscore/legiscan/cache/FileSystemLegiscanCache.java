@@ -8,12 +8,10 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.event.Level;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import us.poliscore.legiscan.service.CachedLegiscanService;
 import us.poliscore.legiscan.view.LegiscanResponse;
 
 public class FileSystemLegiscanCache implements LegiscanCache {
@@ -22,20 +20,14 @@ public class FileSystemLegiscanCache implements LegiscanCache {
 
     private final File baseDir;
     private final ObjectMapper objectMapper;
-    private final int defaultTtlSecs; // If > 0, applies to non-static entries unless overridden
 
-    public FileSystemLegiscanCache(File baseDir, ObjectMapper objectMapper, int defaultTtlSecs) {
+    public FileSystemLegiscanCache(File baseDir, ObjectMapper objectMapper) {
         this.baseDir = baseDir;
         this.objectMapper = objectMapper;
-        this.defaultTtlSecs = defaultTtlSecs;
 
         if (!baseDir.exists() && !baseDir.mkdirs()) {
             throw new IllegalStateException("Could not create cache directory: " + baseDir);
         }
-    }
-
-    public FileSystemLegiscanCache(File baseDir, ObjectMapper objectMapper) {
-        this(baseDir, objectMapper, 0);
     }
 
     private File resolvePath(String key) {
@@ -74,35 +66,48 @@ public class FileSystemLegiscanCache implements LegiscanCache {
     	return getOrExpire(key, new TypeReference<LegiscanResponse>() {});
     }
     
-    @Override
-    public Optional<CachedEntry> peek(String key) {
+    public <T> Optional<T> peek(String key, TypeReference<T> typeRef) {
         File file = resolvePath(key);
-        if (!file.exists()) {
-            return Optional.empty();
-        }
+        if (!file.exists()) return Optional.empty();
 
         try {
             byte[] data = Files.readAllBytes(file.toPath());
             CachedEntry entry = objectMapper.readValue(data, CachedEntry.class);
 
-            return Optional.of(entry);
-
+            T value = objectMapper.convertValue(entry.getValue(), typeRef);
+            return Optional.of(value);
         } catch (Exception e) {
             LOGGER.warn("Failed to read cache for key: " + key, e);
             return Optional.empty();
         }
     }
-
+    
     @Override
-    public void put(String key, Object value) {
-        put(key, value, ttlForCacheKey(key));
+    public Optional<CachedEntry> peekEntry(String key) {
+        File file = resolvePath(key);
+        if (!file.exists()) return Optional.empty();
+
+        try {
+            byte[] data = Files.readAllBytes(file.toPath());
+            CachedEntry entry = objectMapper.readValue(data, CachedEntry.class);
+            return Optional.of(entry);
+        } catch (Exception e) {
+            LOGGER.warn("Failed to read cache entry for key: " + key, e);
+            return Optional.empty();
+        }
     }
 
+    @Override
     public void put(String key, Object value, long ttlSecs) {
+        put(key, value, null, ttlSecs);
+    }
+    
+    @Override
+    public void put(String key, Object value, String objectHash, long ttlSecs) {
         File file = resolvePath(key);
         file.getParentFile().mkdirs();
         try {
-            CachedEntry entry = new CachedEntry(value, Instant.now().getEpochSecond(), ttlSecs);
+            CachedEntry entry = new CachedEntry(value, Instant.now().getEpochSecond(), ttlSecs, objectHash);
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, entry);
         } catch (IOException e) {
             LOGGER.warn("Failed to write cache for key: " + key, e);
@@ -129,10 +134,6 @@ public class FileSystemLegiscanCache implements LegiscanCache {
     
     @Override
 	public boolean presentAndValid(String key) {
-    	return peek(key).isPresent();
+    	return peekEntry(key).isPresent();
 	}
-    
-    protected long ttlForCacheKey(String cacheKey) {
-    	return CachedLegiscanService.isCacheKeyStatic(cacheKey) ? 0 : defaultTtlSecs;
-    }
 }
