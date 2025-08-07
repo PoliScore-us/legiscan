@@ -71,13 +71,13 @@ Here's a few examples:
 
 ```
 # Download the poliscore legiscan 'far jar' from maven central
-mvn dependency:copy -Dartifact=us.poliscore:legiscan:1.1.1:jar:cli -DoutputDirectory=.
+mvn dependency:copy -Dartifact=us.poliscore:legiscan:1.1.2:jar:cli -DoutputDirectory=.
 
 # Cache a dataset
-java -jar legiscan-1.1.1-cli.jar --key 123 -op cacheDataset --state US --year 2020
+java -jar legiscan-1.1.2-cli.jar --key 123 -op cacheDataset --state US --year 2020
 
 # Manually fetch a bill
-java -jar legiscan-1.1.1-cli.jar --key 123 -op getBill --id 2028513
+java -jar legiscan-1.1.2-cli.jar --key 123 -op getBill --id 2028513
 ```
 
 Just replace '--key 123' with your legiscan key. This library has been developed and tested on Java 21.
@@ -91,7 +91,7 @@ This library has been published to Maven central and can be added as a library d
 <dependency>
     <groupId>us.poliscore</groupId>
     <artifactId>legiscan</artifactId>
-    <version>1.1.1</version>
+    <version>1.1.2</version>
 </dependency>
 ```
 
