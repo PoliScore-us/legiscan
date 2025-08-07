@@ -196,8 +196,14 @@ public class CachedLegiscanDatasetResult {
     		
     		if (cached == null || cachedVal.getBill() == null || !summary.getChangeHash().equals(cachedVal.getBill().getChangeHash())) {
     			legiscan.getCache().remove(cacheKey);
-    			var bill = legiscan.getBill(summary.getBillId());
-    			bills.put(bill.getBillId(), bill);
+    			
+    			if (bills.containsKey(summary.getBillId()) && bills.get(summary.getBillId()).getChangeHash().equals(summary.getChangeHash())) {
+    				// Refresh the TTL here since we just verified with the masterlist that its latest
+        			legiscan.getCache().put(cacheKey, cachedVal, ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey).getSeconds());
+    			} else {
+	    			var bill = legiscan.getBill(summary.getBillId());
+	    			bills.put(bill.getBillId(), bill);
+    			}
     		} else if (cached.isExpired()) {
     			// Refresh the TTL here since we just verified with the masterlist that its latest
     			legiscan.getCache().put(cacheKey, cachedVal, ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey).getSeconds());
