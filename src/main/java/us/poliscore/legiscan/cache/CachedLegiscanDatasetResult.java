@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,6 +24,7 @@ import us.poliscore.legiscan.service.CachedLegiscanService;
 import us.poliscore.legiscan.service.ExpirationPolicy;
 import us.poliscore.legiscan.view.LegiscanBillView;
 import us.poliscore.legiscan.view.LegiscanDatasetView;
+import us.poliscore.legiscan.view.LegiscanMasterListView.BillSummary;
 import us.poliscore.legiscan.view.LegiscanPeopleView;
 import us.poliscore.legiscan.view.LegiscanResponse;
 import us.poliscore.legiscan.view.LegiscanRollCallView;
@@ -170,23 +172,6 @@ public class CachedLegiscanDatasetResult {
     {
     	var masterlist = legiscan.getMasterListRaw(dataset.getSessionId());
     	
-    	// Count how many
-    	long count = 0;
-    	for (var summary : masterlist.getBills().values())
-    	{
-            String cacheKey = LegiscanBillView.getCacheKey(summary.getBillId());
-    		
-    		var cached = legiscan.getCache().peekEntry(cacheKey).orElse(null);
-    		var cachedVal = cached == null ? null : objectMapper.convertValue(cached.getValue(), new TypeReference<LegiscanResponse>() {});
-    		
-    		if (cached == null || cachedVal.getBill() == null || !summary.getChangeHash().equals(cachedVal.getBill().getChangeHash()))
-    		{
-    			count++;
-    		}
-    	}
-    	LOGGER.info("Updating bills. Will fetch " + count + " bills from Legiscan.");
-    	
-    	// Do it
     	for (var summary : masterlist.getBills().values())
     	{
             String cacheKey = LegiscanBillView.getCacheKey(summary.getBillId());
