@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.SneakyThrows;
+import us.poliscore.legiscan.cache.CachedLegiscanDatasetResult;
 import us.poliscore.legiscan.service.CachedLegiscanService;
 import us.poliscore.legiscan.service.LegiscanService;
 import us.poliscore.legiscan.view.LegiscanState;
@@ -33,7 +34,7 @@ public class LegiscanClient {
         options.addOption("i", "id", true, "ID for operations requiring a bill/session/person ID");
         options.addOption("s", "state", true, "State abbreviation (e.g., CA, TX)");
         options.addOption("y", "year", true, "Year filter (e.g., 2024)");
-        options.addOption("sp", "special", false, "Special. Used for cacheDataset. (default: false)");
+        options.addOption("sid", "sessionId", true, "Session id. Used with cacheDataset to cache a specific session (particularly useful for special sessions). (Optional)");
         options.addOption("q", "query", true, "Query string for search");
         options.addOption("a", "access_key", true, "Access key for dataset retrieval");
         options.addOption("f", "format", true, "Format for dataset (json, csv)");
@@ -82,7 +83,13 @@ public class LegiscanClient {
         switch (op) {
         	case "cacheDataset" -> {
         		var cacheService = (CachedLegiscanService)service;
-        		var cached = cacheService.cacheDataset(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")), Integer.parseInt(cmd.getOptionValue("year")), cmd.hasOption("special"));
+        		
+        		CachedLegiscanDatasetResult cached;
+        		if (cmd.hasOption("sid"))
+        			cached = cacheService.cacheDataset(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")), Integer.parseInt(cmd.getOptionValue("year")), Integer.parseInt(cmd.getOptionValue("sid")));
+        		else
+        			cached = cacheService.cacheDataset(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")), Integer.parseInt(cmd.getOptionValue("year")));
+        		
         		System.out.println("Successfully loaded [" + cached.getDataset().getSessionName() + "] into cache [" + cacheService.getCache().toString() + "]. Dataset contains " + cached.getPeople().size() + " people, " + cached.getBills().size()+ " bills, and " + cached.getVotes().size()+ " votes.");
         	}
             case "getBill" -> System.out.println(outputMapper.writeValueAsString(service.getBill(Integer.parseInt(cmd.getOptionValue("id")))));
@@ -109,7 +116,7 @@ public class LegiscanClient {
                     System.out.println(outputMapper.writeValueAsString(service.getSearch(Integer.parseInt(cmd.getOptionValue("id")), query, page)));
                 else
                     System.out.println(outputMapper.writeValueAsString(service.getSearch(LegiscanState.fromAbbreviation(cmd.getOptionValue("state")), query,
-                            Integer.parseInt(cmd.getOptionValue("year", "2")), page)));
+                            Integer.parseInt(cmd.getOptionValue("year")), page)));
             }
             case "getSearchRaw" -> {
                 String query = cmd.getOptionValue("query");

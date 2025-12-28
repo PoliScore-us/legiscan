@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +40,7 @@ import us.poliscore.legiscan.view.LegiscanSessionView;
 import us.poliscore.legiscan.view.LegiscanSponsoredBillView;
 import us.poliscore.legiscan.view.LegiscanState;
 import us.poliscore.legiscan.view.LegiscanSupplementView;
+import us.poliscore.legiscan.view.RefreshFrequency;
 
 /**
  * Implements a "Legiscan Client", as defined per the Legiscan documentation. Default configuration provides for the following additional services
@@ -174,16 +174,43 @@ public class CachedLegiscanService extends LegiscanService {
      * The dataset's people, bills and votes can be accessed via the returned CachedLegiscanDataset.
      * 
      * @param dataset
+     * @param freshness How fresh is the data? More granular specifications (i.e. hourly) will eat more Legiscan API budget (default value is WEEKLY)
      */
     @SneakyThrows
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanDatasetView dataset)
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanDatasetView dataset, RefreshFrequency freshness)
     {
     	var cachedDataset = new CachedLegiscanDatasetResult(this, dataset, objectMapper);
     	
-    	cachedDataset.update();
+    	cachedDataset.update(freshness);
     	
     	return cachedDataset;
     }
+    
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanDatasetView dataset) { return cacheDataset(dataset, RefreshFrequency.WEEKLY); }
+    
+    /**
+     * Fetches the regular session Legiscan dataset and populates the cache with the most up-to-date data. Any objects which are already cached will simply be updated.
+     * The dataset's people, bills and votes can be accessed via the returned CachedLegiscanDataset.
+     * 
+     * @param state
+     * @param year
+     * @param freshness How fresh is the data? More granular specifications (i.e. hourly) will eat more Legiscan API budget (default value is WEEKLY)
+     */
+    @SneakyThrows
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, RefreshFrequency freshness) {
+		List<LegiscanDatasetView> datasets = getDatasetList(state, year);
+        
+        for (var dataset : datasets)
+        {
+        	if (dataset.isSpecial() == false) {
+        		return cacheDataset(dataset);
+        	}
+        }
+        
+        throw new RuntimeException("Dataset not found!");
+	}
+    
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year) { return cacheDataset(state, year, RefreshFrequency.WEEKLY); }
     
     /**
      * Fetches the Legiscan dataset and populates the cache with the most up-to-date data. Any objects which are already cached will simply be updated.
@@ -191,22 +218,24 @@ public class CachedLegiscanService extends LegiscanService {
      * 
      * @param state
      * @param year
-     * @param special
+     * @param sessionId
+     * @param freshness How fresh is the data? More granular specifications (i.e. hourly) will eat more Legiscan API budget (default value is WEEKLY)
      */
     @SneakyThrows
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, boolean special) {
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, int sessionId, RefreshFrequency freshness) {
 		List<LegiscanDatasetView> datasets = getDatasetList(state, year);
         
         for (var dataset : datasets)
         {
-        	if (dataset.isSpecial() == special) {
+        	if (dataset.getSessionId() == sessionId) {
         		return cacheDataset(dataset);
         	}
         }
         
         throw new RuntimeException("Dataset not found!");
 	}
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year) { return cacheDataset(state,year,false); }
+    
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, int sessionId) { return cacheDataset(state, year, sessionId, RefreshFrequency.WEEKLY); }
 
     @Override
     public List<LegiscanSessionView> getSessionList(LegiscanState state) {

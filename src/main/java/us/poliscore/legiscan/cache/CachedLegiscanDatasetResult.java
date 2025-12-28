@@ -5,7 +5,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,10 +23,10 @@ import us.poliscore.legiscan.service.CachedLegiscanService;
 import us.poliscore.legiscan.service.ExpirationPolicy;
 import us.poliscore.legiscan.view.LegiscanBillView;
 import us.poliscore.legiscan.view.LegiscanDatasetView;
-import us.poliscore.legiscan.view.LegiscanMasterListView.BillSummary;
 import us.poliscore.legiscan.view.LegiscanPeopleView;
 import us.poliscore.legiscan.view.LegiscanResponse;
 import us.poliscore.legiscan.view.LegiscanRollCallView;
+import us.poliscore.legiscan.view.RefreshFrequency;
 
 public class CachedLegiscanDatasetResult {
 	
@@ -60,13 +59,17 @@ public class CachedLegiscanDatasetResult {
 	/**
 	 * Fetches the Legiscan dataset and populates the cache with the most up-to-date data. Calling this method will populate the bills, people, and votes
 	 * member variables. This method is invoked on your behalf when invoking LegiscanClient.cacheDataset.
+	 * 
+	 * @param freq How up-to-date does your data need to be?
 	 */
-	public void update()
+	public void update(RefreshFrequency freq)
 	{
 		LOGGER.debug("Updating dataset [" + dataset.getSessionName() + "] from Legiscan.");
 		
 		bulkLoad();
-		updateBills();
+		
+		if (freq != RefreshFrequency.WEEKLY)
+			updateBills();
 		
 		LOGGER.debug("Dataset [" + dataset.getSessionName() + "] successfully updated.");
 	}
@@ -167,6 +170,9 @@ public class CachedLegiscanDatasetResult {
 	/**
      * Fetches the masterlist and caches all new or updated bills. This is important because the masterlist is updated with new bills every hour but the
      * 'getSessionPeople' or the 'getDataset' APIs are updated weekly. So this makes our bills much more current.
+     * 
+     * This can cause us to 'spam' the legiscan service. For that reason, this is an 'opt-in' feature of our API, and should only be enabled if you truly
+     * need bills more up-to-date than a weekly basis.
      */
     protected void updateBills()
     {
