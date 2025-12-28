@@ -27,6 +27,21 @@ cacheDataset is a combination of a few different Legiscan API methods. First, th
 
 ## Usage
 
+### Java
+
+The primary Java entrypoint is the 'CachedLegiscanService' class. It comes with a builder to help you create and configure it. This class automatically utilizes filesystem caching for anything that touches the remote Legiscan service (as is required by Legiscan).
+
+Here's an example of fetching the 2025 Colorado (non-special) legislative session and looping over its bills.
+```
+CachedLegiscanService legiscan = CachedLegiscanService.builder("your-legiscan-api-key-here").build();
+
+var dataset = legiscan.cacheDataset(LegiscanState.COLORADO, 2025);
+
+for (var bill : dataset.getBills().values()) {
+ System.out.println(bill.getBillNumber() + " : " + bill.getTitle());
+}
+```
+
 ### CLI
 
 The cli jar provides for a command line interface, built using commons cli. The output of the help command is as follows:
