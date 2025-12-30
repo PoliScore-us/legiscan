@@ -46,7 +46,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
             byte[] data = Files.readAllBytes(file.toPath());
             CachedEntry entry = objectMapper.readValue(data, CachedEntry.class);
 
-            if (entry.isExpired()) {
+            if (entry.isExpired(null)) {
                 LOGGER.trace("Cache expired for key: " + key);
                 file.delete(); // Clean up expired file
                 return Optional.empty();

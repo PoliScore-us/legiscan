@@ -68,8 +68,7 @@ public class CachedLegiscanDatasetResult {
 		
 		bulkLoad();
 		
-		if (freq != RefreshFrequency.WEEKLY)
-			updateBills();
+		updateBills(freq);
 		
 		LOGGER.debug("Dataset [" + dataset.getSessionName() + "] successfully updated.");
 	}
@@ -168,13 +167,10 @@ public class CachedLegiscanDatasetResult {
 	}
 	
 	/**
-     * Fetches the masterlist and caches all new or updated bills. This is important because the masterlist is updated with new bills every hour but the
-     * 'getSessionPeople' or the 'getDataset' APIs are updated weekly. So this makes our bills much more current.
-     * 
-     * This can cause us to 'spam' the legiscan service. For that reason, this is an 'opt-in' feature of our API, and should only be enabled if you truly
-     * need bills more up-to-date than a weekly basis.
+     * Fetches the masterlist and checks to see if the bill we got from bulk loading matches against the masterlist. If it does, we set the TTL to now (preventing legiscan spamming).
+     * If it doesn't, and the frequency is NOT weekly (which we're already guaranteed with the bulk upload) then we update our data to match the requested frequency.
      */
-    protected void updateBills()
+    protected void updateBills(RefreshFrequency freq)
     {
     	var masterlist = legiscan.getMasterListRaw(dataset.getSessionId());
     	
@@ -188,14 +184,14 @@ public class CachedLegiscanDatasetResult {
     		if (cached == null || cachedVal.getBill() == null || !summary.getChangeHash().equals(cachedVal.getBill().getChangeHash())) {
     			legiscan.getCache().remove(cacheKey);
     			
-    			if (bills.containsKey(summary.getBillId()) && bills.get(summary.getBillId()).getChangeHash().equals(summary.getChangeHash())) {
+    			if (bills.containsKey(summary.getBillId()) && (bills.get(summary.getBillId()).getChangeHash().equals(summary.getChangeHash()))) {
     				// Refresh the TTL here since we just verified with the masterlist that its latest
         			legiscan.getCache().put(cacheKey, cachedVal, ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey).getSeconds());
-    			} else {
-	    			var bill = legiscan.getBill(summary.getBillId());
+    			}else {
+    				var bill = legiscan.getBill(summary.getBillId());
 	    			bills.put(bill.getBillId(), bill);
     			}
-    		} else if (cached.isExpired()) {
+    		} else if (cached.isExpired(freq)) {
     			// Refresh the TTL here since we just verified with the masterlist that its latest
     			legiscan.getCache().put(cacheKey, cachedVal, ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey).getSeconds());
     		}

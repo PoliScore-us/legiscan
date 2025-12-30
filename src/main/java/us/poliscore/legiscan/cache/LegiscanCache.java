@@ -9,8 +9,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import us.poliscore.legiscan.cache.LegiscanCache.CachedEntry;
 import us.poliscore.legiscan.view.LegiscanResponse;
+import us.poliscore.legiscan.view.RefreshFrequency;
 
 public interface LegiscanCache {
     /**
@@ -64,8 +64,12 @@ public interface LegiscanCache {
         private String objectHash;
         
         @JsonIgnore
-        public boolean isExpired() {
-            return getTtlSecs() > 0 && Instant.now().getEpochSecond() > getTimestamp() + getTtlSecs();
+        public boolean isExpired(RefreshFrequency minFreshness) {
+        	if (getTtlSecs() <= 0) return false;
+        	
+        	long validLength = minFreshness == null ? getTtlSecs() : Math.max(minFreshness.asDuration().getSeconds(), getTtlSecs());
+        	
+            return Instant.now().getEpochSecond() > getTimestamp() + validLength;
         }
     }
 }

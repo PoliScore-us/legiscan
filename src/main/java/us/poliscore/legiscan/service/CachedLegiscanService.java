@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.val;
 import us.poliscore.legiscan.cache.CachedLegiscanDatasetResult;
@@ -55,6 +56,9 @@ public class CachedLegiscanService extends LegiscanService {
     
     @Getter
     protected final LegiscanCache cache;
+    
+    @Getter
+    protected RefreshFrequency freshness = RefreshFrequency.WEEKLY;
 
     protected CachedLegiscanService(String apiKey, ObjectMapper objectMapper, LegiscanCache cache) {
         super(apiKey, objectMapper);
@@ -70,6 +74,7 @@ public class CachedLegiscanService extends LegiscanService {
     	protected ObjectMapper objectMapper;
     	protected LegiscanCache cache;
     	protected File cacheDirectory;
+    	protected RefreshFrequency freshness = null;
 
         public Builder(String apiKey) {
             this.apiKey = apiKey;
@@ -77,6 +82,35 @@ public class CachedLegiscanService extends LegiscanService {
 
         public Builder withObjectMapper(ObjectMapper objectMapper) {
             this.objectMapper = objectMapper;
+            return this;
+        }
+        
+        /**
+         * Sets the minimum desired freshness for cached LegiScan data. The default value is
+         * weekly, however you may set this lower for more fresh data, at the expense of more
+         * frequent legiscan "spamming" (which eats up API budget).
+         *
+         * IMPORTANT SEMANTICS:
+         * This value does NOT guarantee that data will be refreshed at this frequency.
+         *
+         * LegiScan data is only updated at known upstream intervals
+         * (for example, bulk datasets are refreshed at most weekly).
+         * If a caller requests a higher refresh frequency (e.g. HOURLY)
+         * than the upstream source can actually provide, the cache will
+         * still honor the upstream TTL to avoid unnecessary API calls.
+         *
+         * In other words:
+         *   effective refresh interval = max(requested freshness, upstream TTL)
+         *
+         * This parameter exists primarily to prevent excessive polling
+         * of the LegiScan API while still allowing callers to express
+         * how stale data is allowed to be at minimum.
+         *
+         * @param freq the minimum desired freshness for cached data
+         * @return this builder
+         */
+        public Builder withFreshness(RefreshFrequency freq) {
+            this.freshness = freq;
             return this;
         }
 
@@ -108,15 +142,49 @@ public class CachedLegiscanService extends LegiscanService {
 
             var client = new CachedLegiscanService(apiKey, objectMapper, cache);
             
+            if (freshness != null)
+            	client.setFreshness(freshness);
+            
             return client;
         }
     }
+    
+    /**
+     * Sets the minimum desired freshness for all cached LegiScan requests
+     * made through this service instance. The default value is weekly, however
+     * you may set this lower for more fresh data, at the expense of more
+     * frequent legiscan "spamming" (which eats up API budget).
+     *
+     * IMPORTANT:
+     * This is a *best-effort* freshness preference, not a hard guarantee.
+     *
+     * LegiScan does not update all data continuously; many endpoints
+     * (notably bulk datasets) are only refreshed on fixed upstream schedules.
+     * If a requested freshness is more aggressive than the upstream
+     * update cadence, the service will continue to treat cached data
+     * as valid until the upstream TTL has elapsed.
+     *
+     * This behavior intentionally prevents unnecessary API calls
+     * when newer data cannot possibly exist.
+     *
+     * In practice:
+     *   - Setting freshness to HOURLY will NOT cause hourly LegiScan calls
+     *     if the upstream data only updates weekly.
+     *   - Setting freshness to WEEKLY ensures cached data is never older
+     *     than what LegiScan itself can reasonably provide.
+     *
+     * @param freshness the minimum desired freshness for cached data
+     */
+    public void setFreshness(RefreshFrequency freshness) {
+        this.freshness = freshness;
+    }
+
     
     protected LegiscanResponse getOrRequest(String cacheKey, String url, ExpirationPolicy ep) {
     	val metadata = cache.peekEntry(cacheKey);
         val cached = cache.peek(cacheKey, new TypeReference<LegiscanResponse>() {});
     	
-    	if (cached.isPresent() && !metadata.get().isExpired()) {
+    	if (cached.isPresent() && metadata.isPresent() && !metadata.get().isExpired(freshness)) {
     		LOGGER.trace("Pulling object [" + cacheKey + "] from cache.");
     		return cached.get();
     	}
@@ -174,10 +242,9 @@ public class CachedLegiscanService extends LegiscanService {
      * The dataset's people, bills and votes can be accessed via the returned CachedLegiscanDataset.
      * 
      * @param dataset
-     * @param freshness How fresh is the data? More granular specifications (i.e. hourly) will eat more Legiscan API budget (default value is WEEKLY)
      */
     @SneakyThrows
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanDatasetView dataset, RefreshFrequency freshness)
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanDatasetView dataset)
     {
     	var cachedDataset = new CachedLegiscanDatasetResult(this, dataset, objectMapper);
     	
@@ -186,18 +253,15 @@ public class CachedLegiscanService extends LegiscanService {
     	return cachedDataset;
     }
     
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanDatasetView dataset) { return cacheDataset(dataset, RefreshFrequency.WEEKLY); }
-    
     /**
      * Fetches the regular session Legiscan dataset and populates the cache with the most up-to-date data. Any objects which are already cached will simply be updated.
      * The dataset's people, bills and votes can be accessed via the returned CachedLegiscanDataset.
      * 
      * @param state
      * @param year
-     * @param freshness How fresh is the data? More granular specifications (i.e. hourly) will eat more Legiscan API budget (default value is WEEKLY)
      */
     @SneakyThrows
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, RefreshFrequency freshness) {
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year) {
 		List<LegiscanDatasetView> datasets = getDatasetList(state, year);
         
         for (var dataset : datasets)
@@ -210,8 +274,6 @@ public class CachedLegiscanService extends LegiscanService {
         throw new RuntimeException("Dataset not found!");
 	}
     
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year) { return cacheDataset(state, year, RefreshFrequency.WEEKLY); }
-    
     /**
      * Fetches the Legiscan dataset and populates the cache with the most up-to-date data. Any objects which are already cached will simply be updated.
      * The dataset's people, bills and votes can be accessed via the returned CachedLegiscanDataset.
@@ -219,10 +281,9 @@ public class CachedLegiscanService extends LegiscanService {
      * @param state
      * @param year
      * @param sessionId
-     * @param freshness How fresh is the data? More granular specifications (i.e. hourly) will eat more Legiscan API budget (default value is WEEKLY)
      */
     @SneakyThrows
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, int sessionId, RefreshFrequency freshness) {
+    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, int sessionId) {
 		List<LegiscanDatasetView> datasets = getDatasetList(state, year);
         
         for (var dataset : datasets)
@@ -234,8 +295,6 @@ public class CachedLegiscanService extends LegiscanService {
         
         throw new RuntimeException("Dataset not found!");
 	}
-    
-    public CachedLegiscanDatasetResult cacheDataset(LegiscanState state, int year, int sessionId) { return cacheDataset(state, year, sessionId, RefreshFrequency.WEEKLY); }
 
     @Override
     public List<LegiscanSessionView> getSessionList(LegiscanState state) {
@@ -417,7 +476,7 @@ public class CachedLegiscanService extends LegiscanService {
         val metadata = cache.peekEntry(cacheKey);
         val cached = cache.peek(cacheKey, new TypeReference<LegiscanResponse>() {});
     	
-    	if (cached.isPresent() && !metadata.get().isExpired()) {
+    	if (cached.isPresent() && metadata.isPresent() && !metadata.get().isExpired(freshness)) {
     		LOGGER.trace("Pulling object [" + cacheKey + "] from cache.");
     		return cached.get().getDataset();
     	}
@@ -452,7 +511,7 @@ public class CachedLegiscanService extends LegiscanService {
         val metadata = cache.peekEntry(cacheKey);
         val cached = cache.peek(cacheKey, new TypeReference<byte[]>() {});
     	
-    	if (cached.isPresent() && !metadata.get().isExpired()) {
+    	if (cached.isPresent() && metadata.isPresent() && !metadata.get().isExpired(freshness)) {
     		LOGGER.trace("Pulling object [" + cacheKey + "] from cache.");
     		return cached.get();
     	}
