@@ -97,12 +97,14 @@ public class LegiscanMasterListView {
 
         @JsonProperty("status_date")
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+        @JsonDeserialize(using = LegiscanLocalDateDeserializer.class)
         private LocalDate statusDate;
 
         private String status;
 
         @JsonProperty("last_action_date")
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+        @JsonDeserialize(using = LegiscanLocalDateDeserializer.class)
         private LocalDate lastActionDate;
 
         @JsonProperty("last_action")

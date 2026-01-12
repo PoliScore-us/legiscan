@@ -7,7 +7,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -70,6 +69,7 @@ public class LegiscanSearchView {
 
         @JsonProperty("last_action_date")
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+        @JsonDeserialize(using = LegiscanLocalDateDeserializer.class)
         private LocalDate lastActionDate;
 
         @JsonProperty("last_action")

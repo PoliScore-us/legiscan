@@ -1,13 +1,15 @@
 
 package us.poliscore.legiscan.view;
 
+import java.time.LocalDate;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-import java.time.LocalDate;
-import java.util.List;
+import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -25,6 +27,7 @@ public class LegiscanRollCallView {
     
     @JsonProperty("date")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    @JsonDeserialize(using = LegiscanLocalDateDeserializer.class)
     private LocalDate date;
     
     @JsonProperty("desc")

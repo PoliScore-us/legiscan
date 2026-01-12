@@ -55,6 +55,7 @@ public class LegiscanBillView {
     
     @JsonProperty("status_date")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    @JsonDeserialize(using = LegiscanLocalDateDeserializer.class)
     protected LocalDate statusDate;
     
     @JsonProperty("progress")

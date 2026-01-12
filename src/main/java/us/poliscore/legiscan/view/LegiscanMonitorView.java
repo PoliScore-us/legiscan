@@ -14,6 +14,7 @@ import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import lombok.Data;
 
@@ -29,12 +30,14 @@ public class LegiscanMonitorView {
     
     @JsonProperty("status_date")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    @JsonDeserialize(using = LegiscanLocalDateDeserializer.class)
     private LocalDate statusDate;
     
     private int status;
     
     @JsonProperty("last_action_date")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    @JsonDeserialize(using = LegiscanLocalDateDeserializer.class)
     private LocalDate lastActionDate;
     
     private String last_action;

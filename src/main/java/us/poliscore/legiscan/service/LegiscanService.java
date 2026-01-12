@@ -57,9 +57,11 @@ public class LegiscanService {
     public LegiscanService(String apiKey, ObjectMapper objectMapper) {
         this.apiKey = apiKey;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(REQUEST_TIMEOUT)
-                .build();
+        
+		this.httpClient = HttpClient.newBuilder()
+		    .connectTimeout(REQUEST_TIMEOUT)
+		    .version(HttpClient.Version.HTTP_1_1) // Forcing Http v1 to remove "go away" issue
+		    .build();
     }
     
     public LegiscanService(String apiKey) {
