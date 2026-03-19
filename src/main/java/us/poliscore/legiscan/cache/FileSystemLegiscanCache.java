@@ -34,6 +34,20 @@ public class FileSystemLegiscanCache implements LegiscanCache {
         String filename = key.replaceAll("[^/a-zA-Z0-9\\-_]", "_") + "/cached.json";
         return new File(baseDir, filename);
     }
+    
+    private void deleteCacheFile(File file, String key, String reason, boolean warnOnSuccess) {
+        if (!file.exists()) return;
+        
+        try {
+            Files.delete(file.toPath());
+            if (warnOnSuccess)
+                LOGGER.warn("Deleted cache file for key: {} after {}", key, reason);
+            else
+                LOGGER.trace("Cache file deleted for key: {} after {}", key, reason);
+        } catch (IOException deleteEx) {
+            LOGGER.warn("Failed to delete cache file for key: {} after {}", key, reason, deleteEx);
+        }
+    }
 
     @Override
     public <T> Optional<T> getOrExpire(String key, TypeReference<T> typeRef) {
@@ -57,6 +71,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
 
         } catch (Exception e) {
             LOGGER.warn("Failed to read cache for key: " + key, e);
+            deleteCacheFile(file, key, "read failure", true);
             return Optional.empty();
         }
     }
@@ -78,6 +93,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
             return Optional.of(value);
         } catch (Exception e) {
             LOGGER.warn("Failed to read cache for key: " + key, e);
+            deleteCacheFile(file, key, "read failure", true);
             return Optional.empty();
         }
     }
@@ -93,6 +109,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
             return Optional.of(entry);
         } catch (Exception e) {
             LOGGER.warn("Failed to read cache entry for key: " + key, e);
+            deleteCacheFile(file, key, "read failure", true);
             return Optional.empty();
         }
     }
@@ -111,6 +128,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, entry);
         } catch (IOException e) {
             LOGGER.warn("Failed to write cache for key: " + key, e);
+            deleteCacheFile(file, key, "write failure", true);
         }
     }
     
@@ -122,14 +140,7 @@ public class FileSystemLegiscanCache implements LegiscanCache {
     @Override
     public void remove(String cacheKey) {
         File file = resolvePath(cacheKey);
-        if (file.exists()) {
-            try {
-                Files.delete(file.toPath());
-                LOGGER.trace("Cache file deleted for key: " + cacheKey);
-            } catch (IOException e) {
-                LOGGER.warn("Failed to delete cache file for key: " + cacheKey, e);
-            }
-        }
+        deleteCacheFile(file, cacheKey, "explicit removal", false);
     }
     
     @Override

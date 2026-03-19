@@ -1,5 +1,6 @@
 package us.poliscore.legiscan.service;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -11,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +25,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.Getter;
-import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.val;
 import us.poliscore.legiscan.cache.CachedLegiscanDatasetResult;
@@ -530,12 +532,32 @@ public class CachedLegiscanService extends LegiscanService {
     	
     	LOGGER.debug("Fetching object [" + cacheKey + "] from Legiscan.");
         byte[] value = makeRequestRaw(url);
+        validateZip(value);
         
         val ep = ExpirationPolicy.weekly();
         val expiration = ep.getTtl(Instant.now(), cacheKey);
         cache.put(cacheKey, value, datasetHash, expiration == null ? -1 : expiration.getSeconds());
         
         return value;
+    }
+    
+    private void validateZip(byte[] data) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+             ZipInputStream zis = new ZipInputStream(bais)) {
+
+            ZipEntry entry = zis.getNextEntry();
+
+            if (entry == null) {
+                throw new IllegalArgumentException("ZIP file contains no entries.");
+            }
+
+            // Try reading some bytes from the first entry to ensure it's readable
+            byte[] buffer = new byte[1];
+            zis.read(buffer);
+
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Response is not a valid ZIP file.", e);
+        }
     }
 
     @Override
