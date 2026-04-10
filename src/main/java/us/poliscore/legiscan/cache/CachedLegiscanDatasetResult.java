@@ -230,6 +230,11 @@ public class CachedLegiscanDatasetResult {
 				continue;
 			}
 
+			if (cachedEntry != null && cachedBill != null && !cachedEntry.isExpired(null)) {
+				bills.put(summary.getBillId(), cachedBill);
+				continue;
+			}
+
 			legiscan.getCache().remove(cacheKey);
 
 			if (bulkMatchesMaster) {
@@ -252,7 +257,7 @@ public class CachedLegiscanDatasetResult {
 						dataset.getState().getAbbreviation(), dataset.getSessionId(), summary.getChangeHash(),
 						summary.getStatusDate(), summary.getLastActionDate(), summary.getLastAction(),
 						bill.getChangeHash(), bill.getStatusDate(), latestBillActionDate(bill));
-				ttlSecs = ExpirationPolicy.fixedDuration(Duration.ofHours(1)).getTtl(Instant.now(), cacheKey)
+				ttlSecs = ExpirationPolicy.fixedDuration(Duration.ofHours(24)).getTtl(Instant.now(), cacheKey)
 						.getSeconds();
 			}
 
