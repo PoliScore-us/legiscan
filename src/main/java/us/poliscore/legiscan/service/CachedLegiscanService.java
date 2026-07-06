@@ -56,100 +56,107 @@ public class CachedLegiscanService extends LegiscanService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CachedLegiscanService.class);
     
-    @Getter
-    protected final LegiscanCache cache;
-    
-    @Getter
-    protected RefreshFrequency freshness = RefreshFrequency.WEEKLY;
+	@Getter
+	protected final LegiscanCache cache;
 
-    protected CachedLegiscanService(String apiKey, ObjectMapper objectMapper, LegiscanCache cache) {
-        super(apiKey, objectMapper);
-        this.cache = cache;
-    }
+	@Getter
+	protected RefreshFrequency freshness = RefreshFrequency.WEEKLY;
 
-    public static Builder builder(String apiKey) {
-        return new Builder(apiKey);
-    }
+	protected CachedLegiscanService(String apiKey, ObjectMapper objectMapper, LegiscanCache cache,
+			int requestQuotaLimit) {
+		super(apiKey, objectMapper, requestQuotaLimit);
+		this.cache = cache;
+	}
 
-    public static class Builder {
-    	protected final String apiKey;
-    	protected ObjectMapper objectMapper;
-    	protected LegiscanCache cache;
-    	protected File cacheDirectory;
-    	protected RefreshFrequency freshness = null;
+	public static Builder builder(String apiKey) {
+		return new Builder(apiKey);
+	}
 
-        public Builder(String apiKey) {
-            this.apiKey = apiKey;
-        }
+	public static class Builder {
+		protected final String apiKey;
+		protected ObjectMapper objectMapper;
+		protected LegiscanCache cache;
+		protected File cacheDirectory;
+		protected RefreshFrequency freshness = null;
+		protected int requestQuotaLimit = LegiscanService.DEFAULT_REQUEST_QUOTA_LIMIT;
 
-        public Builder withObjectMapper(ObjectMapper objectMapper) {
-            this.objectMapper = objectMapper;
-            return this;
-        }
-        
-        /**
-         * Sets the minimum desired freshness for cached LegiScan data. The default value is
-         * weekly, however you may set this lower for more fresh data, at the expense of more
-         * frequent legiscan "spamming" (which eats up API budget).
-         *
-         * IMPORTANT SEMANTICS:
-         * This value does NOT guarantee that data will be refreshed at this frequency.
-         *
-         * LegiScan data is only updated at known upstream intervals
-         * (for example, bulk datasets are refreshed at most weekly).
-         * If a caller requests a higher refresh frequency (e.g. HOURLY)
-         * than the upstream source can actually provide, the cache will
-         * still honor the upstream TTL to avoid unnecessary API calls.
-         *
-         * In other words:
-         *   effective refresh interval = max(requested freshness, upstream TTL)
-         *
-         * This parameter exists primarily to prevent excessive polling
-         * of the LegiScan API while still allowing callers to express
-         * how stale data is allowed to be at minimum.
-         *
-         * @param freq the minimum desired freshness for cached data
-         * @return this builder
-         */
-        public Builder withFreshness(RefreshFrequency freq) {
-            this.freshness = freq;
-            return this;
-        }
+		public Builder(String apiKey) {
+			this.apiKey = apiKey;
+		}
 
-        public Builder withCache(LegiscanCache cache) {
-            this.cache = cache;
-            return this;
-        }
+		public Builder withObjectMapper(ObjectMapper objectMapper) {
+			this.objectMapper = objectMapper;
+			return this;
+		}
+	
+		/**
+		 * Sets the minimum desired freshness for cached LegiScan data. The default value is
+		 * weekly, however you may set this lower for more fresh data, at the expense of more
+		 * frequent legiscan "spamming" (which eats up API budget).
+		 *
+		 * IMPORTANT SEMANTICS:
+		 * This value does NOT guarantee that data will be refreshed at this frequency.
+		 *
+		 * LegiScan data is only updated at known upstream intervals
+		 * (for example, bulk datasets are refreshed at most weekly).
+		 * If a caller requests a higher refresh frequency (e.g. HOURLY)
+		 * than the upstream source can actually provide, the cache will
+		 * still honor the upstream TTL to avoid unnecessary API calls.
+		 *
+		 * In other words:
+		 *   effective refresh interval = max(requested freshness, upstream TTL)
+		 *
+		 * This parameter exists primarily to prevent excessive polling
+		 * of the LegiScan API while still allowing callers to express
+		 * how stale data is allowed to be at minimum.
+		 *
+		 * @param freq the minimum desired freshness for cached data
+		 * @return this builder
+		 */
+		public Builder withFreshness(RefreshFrequency freq) {
+			this.freshness = freq;
+			return this;
+		}
 
-        public Builder withCacheDirectory(File dir) {
-            this.cacheDirectory = dir;
-            return this;
-        }
+		public Builder withRequestQuotaLimit(int requestQuotaLimit) {
+			this.requestQuotaLimit = requestQuotaLimit;
+			return this;
+		}
 
-        public CachedLegiscanService build() {
-            if (this.objectMapper == null) {
-            	this.objectMapper = JsonMapper.builder().addModule(new JavaTimeModule()).build();
-            	
-            	// The dataset fetching methods have some large zips which are serialized into json. Without this the deserialization will fail
-            	objectMapper.getFactory().setStreamReadConstraints(StreamReadConstraints.builder().maxStringLength(100_000_000).build());
-            }
+		public Builder withCache(LegiscanCache cache) {
+			this.cache = cache;
+			return this;
+		}
 
-            if (this.cache == null) {
-                File dir = cacheDirectory != null
-                        ? cacheDirectory
-                        : new File(System.getProperty("user.home") + "/appdata/poliscore/legiscan");
-                
-                this.cache = new FileSystemLegiscanCache(dir, this.objectMapper);
-            }
+		public Builder withCacheDirectory(File dir) {
+			this.cacheDirectory = dir;
+			return this;
+		}
 
-            var client = new CachedLegiscanService(apiKey, objectMapper, cache);
-            
-            if (freshness != null)
-            	client.setFreshness(freshness);
-            
-            return client;
-        }
-    }
+		public CachedLegiscanService build() {
+			if (this.objectMapper == null) {
+				this.objectMapper = JsonMapper.builder().addModule(new JavaTimeModule()).build();
+
+				// The dataset fetching methods have some large zips which are serialized into json. Without this the deserialization will fail
+				objectMapper.getFactory().setStreamReadConstraints(StreamReadConstraints.builder().maxStringLength(100_000_000).build());
+			}
+
+			if (this.cache == null) {
+				File dir = cacheDirectory != null
+						? cacheDirectory
+						: new File(System.getProperty("user.home") + "/appdata/poliscore/legiscan");
+
+				this.cache = new FileSystemLegiscanCache(dir, this.objectMapper);
+			}
+
+			var client = new CachedLegiscanService(apiKey, objectMapper, cache, requestQuotaLimit);
+
+			if (freshness != null)
+				client.setFreshness(freshness);
+
+			return client;
+		}
+	}
     
     /**
      * Sets the minimum desired freshness for all cached LegiScan requests

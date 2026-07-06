@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +23,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.SneakyThrows;
 import us.poliscore.legiscan.exception.LegiscanException;
+import us.poliscore.legiscan.exception.QuotaExceededException;
 import us.poliscore.legiscan.view.LegiscanAmendmentView;
 import us.poliscore.legiscan.view.LegiscanBillTextView;
 import us.poliscore.legiscan.view.LegiscanBillView;
@@ -47,86 +50,140 @@ public class LegiscanService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(LegiscanService.class.getName());
 	
-    protected static final String BASE_URL = "https://api.legiscan.com/";
-    protected static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+	protected static final String BASE_URL = "https://api.legiscan.com/";
+	protected static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+	public static final String DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE = "8000";
+	public static final int DEFAULT_REQUEST_QUOTA_LIMIT = Integer.parseInt(DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE);
 
-    protected final String apiKey;
-    protected final ObjectMapper objectMapper;
-    protected final HttpClient httpClient;
+	protected final String apiKey;
+	protected final ObjectMapper objectMapper;
+	protected final HttpClient httpClient;
+	protected final int requestQuotaLimit;
+	protected final AtomicInteger requestCount = new AtomicInteger(0);
+	protected final AtomicBoolean serverQuotaExceeded = new AtomicBoolean(false);
 
-    public LegiscanService(String apiKey, ObjectMapper objectMapper) {
-        this.apiKey = apiKey;
-        this.objectMapper = objectMapper;
-        
+	public LegiscanService(String apiKey, ObjectMapper objectMapper) {
+		this(apiKey, objectMapper, DEFAULT_REQUEST_QUOTA_LIMIT);
+	}
+
+	public LegiscanService(String apiKey, ObjectMapper objectMapper, int requestQuotaLimit) {
+		this.apiKey = apiKey;
+		this.objectMapper = objectMapper;
+		this.requestQuotaLimit = requestQuotaLimit;
+
 		this.httpClient = HttpClient.newBuilder()
-		    .connectTimeout(REQUEST_TIMEOUT)
-		    .version(HttpClient.Version.HTTP_1_1) // Forcing Http v1 to remove "go away" issue
-		    .build();
-    }
-    
-    public LegiscanService(String apiKey) {
-        this(apiKey, JsonMapper.builder().addModule(new JavaTimeModule()).build());
-    }
+			    .connectTimeout(REQUEST_TIMEOUT)
+			    .version(HttpClient.Version.HTTP_1_1) // Forcing Http v1 to remove "go away" issue
+			    .build();
+	}
 
-    protected String buildUrl(String endpoint, String... params) {
-        StringBuilder url = new StringBuilder(BASE_URL)
-                .append("?key=").append(apiKey)
-                .append("&op=").append(endpoint);
+	public LegiscanService(String apiKey) {
+		this(apiKey, JsonMapper.builder().addModule(new JavaTimeModule()).build());
+	}
 
-        for (int i = 0; i < params.length; i += 2) {
-            if (i + 1 < params.length && params[i] != null && params[i+1] != null && !params[i].equals("null") && !params[i+1].equals("null")) {
-                url.append("&").append(params[i]).append("=")
-                        .append(URLEncoder.encode(params[i + 1], StandardCharsets.UTF_8));
-            }
-        }
+	public int getRequestQuotaLimit() {
+		return requestQuotaLimit;
+	}
 
-        return url.toString();
-    }
-    
-    @SneakyThrows
-    public LegiscanResponse makeRequest(String url) {
-        var resp = makeRequest(new TypeReference<LegiscanResponse>() {}, url);
-        
-        if (resp.getAlert() != null) {
-        	LOGGER.error("Alert response returned from legiscan [" + objectMapper.writeValueAsString(resp) + "].");
-        	throw new LegiscanException("Alert response returned from legiscan [" + resp.getAlert().getMessage() + "]");
-        }
-        
-        return resp;
-    }
+	public int getRequestCount() {
+		return requestCount.get();
+	}
 
-    public <T> T makeRequest(TypeReference<T> typeRef, String url) {
-        try {
-            byte[] responseBytes = makeRequestRaw(url);
-            return objectMapper.readValue(responseBytes, typeRef);
-        } catch (Exception e) {
-            LOGGER.error("Error during Legiscan API call to: " + url, e);
-            throw new LegiscanException("Failed to call Legiscan API: " + url, e);
-        }
-    }
+	protected String buildUrl(String endpoint, String... params) {
+		StringBuilder url = new StringBuilder(BASE_URL)
+				.append("?key=").append(apiKey)
+				.append("&op=").append(endpoint);
 
-    public byte[] makeRequestRaw(String url) {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(REQUEST_TIMEOUT)
-                    .GET()
-                    .build();
+		for (int i = 0; i < params.length; i += 2) {
+			if (i + 1 < params.length && params[i] != null && params[i+1] != null && !params[i].equals("null") && !params[i+1].equals("null")) {
+				url.append("&").append(params[i]).append("=")
+						.append(URLEncoder.encode(params[i + 1], StandardCharsets.UTF_8));
+			}
+		}
 
-            LOGGER.info("Making Legiscan API request to: " + url);
-            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+		return url.toString();
+	}
 
-            if (response.statusCode() == 200) {
-                return response.body();
-            } else {
-                throw new LegiscanException("HTTP " + response.statusCode() + ": " + new String(response.body()));
-            }
+	@SneakyThrows
+	public LegiscanResponse makeRequest(String url) {
+		var resp = makeRequest(new TypeReference<LegiscanResponse>() {}, url);
 
-        } catch (Exception e) {
-            LOGGER.error("Error during raw Legiscan API call to: " + url, e);
-            throw new LegiscanException("Failed to call Legiscan API (raw): " + url, e);
-        }
-    }
+		if (resp.getAlert() != null) {
+			LOGGER.error("Alert response returned from legiscan [" + objectMapper.writeValueAsString(resp) + "].");
+			if (isQuotaExceededAlert(resp.getAlert().getMessage())) {
+				serverQuotaExceeded.set(true);
+				throw new QuotaExceededException("Alert response returned from legiscan [" + resp.getAlert().getMessage() + "]");
+			}
+			throw new LegiscanException("Alert response returned from legiscan [" + resp.getAlert().getMessage() + "]");
+		}
+
+		return resp;
+	}
+
+	public <T> T makeRequest(TypeReference<T> typeRef, String url) {
+		try {
+			byte[] responseBytes = makeRequestRaw(url);
+			return objectMapper.readValue(responseBytes, typeRef);
+		} catch (LegiscanException e) {
+			throw e;
+		} catch (Exception e) {
+			LOGGER.error("Error during Legiscan API call to: " + url, e);
+			throw new LegiscanException("Failed to call Legiscan API: " + url, e);
+		}
+	}
+
+	public byte[] makeRequestRaw(String url) {
+		recordRequestOrThrow();
+
+		try {
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(URI.create(url))
+					.timeout(REQUEST_TIMEOUT)
+					.GET()
+					.build();
+
+			LOGGER.info("Making Legiscan API request to: " + url);
+			HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+
+			if (response.statusCode() == 200) {
+				return response.body();
+			} else {
+				throw new LegiscanException("HTTP " + response.statusCode() + ": " + new String(response.body()));
+			}
+
+		} catch (LegiscanException e) {
+			throw e;
+		} catch (Exception e) {
+			LOGGER.error("Error during raw Legiscan API call to: " + url, e);
+			throw new LegiscanException("Failed to call Legiscan API (raw): " + url, e);
+		}
+	}
+
+	protected void recordRequestOrThrow() {
+		if (serverQuotaExceeded.get()) {
+			throw new QuotaExceededException("Legiscan server quota has already been exceeded. Refusing to make another Legiscan API request.");
+		}
+
+		if (requestQuotaLimit < 0) {
+			requestCount.incrementAndGet();
+			return;
+		}
+		
+		while (true) {
+			int current = requestCount.get();
+			if (current >= requestQuotaLimit) {
+				throw new QuotaExceededException("Legiscan request quota limit exceeded [" + current + " of "
+						+ requestQuotaLimit + "]. Refusing to make another Legiscan API request.");
+			}
+			if (requestCount.compareAndSet(current, current + 1)) {
+				return;
+			}
+		}
+	}
+
+	protected boolean isQuotaExceededAlert(String message) {
+		return message != null && message.startsWith("API key has exceeded maximum query count for ");
+	}
 
 
     /**

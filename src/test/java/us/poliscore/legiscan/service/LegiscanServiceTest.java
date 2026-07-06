@@ -25,9 +25,12 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import us.poliscore.legiscan.cache.LegiscanCache;
+import us.poliscore.legiscan.cache.NoOpLegiscanCache;
 import us.poliscore.legiscan.exception.LegiscanException;
+import us.poliscore.legiscan.exception.QuotaExceededException;
 import us.poliscore.legiscan.view.LegiscanBillView;
 import us.poliscore.legiscan.view.LegiscanResponse;
+import us.poliscore.legiscan.view.LegiscanResponse.LegiscanAlert;
 
 public class LegiscanServiceTest {
 
@@ -77,7 +80,46 @@ public class LegiscanServiceTest {
 //        assertThrows(LegiscanException.class, () -> spyService.getBill(billId));
 //    }
 
-    private void injectFakeHttpClient(LegiscanService service) {
+	@Test
+	void requestQuotaLimitThrowsBeforeRequest() {
+		LegiscanService service = new LegiscanService("fake-api-key",
+				JsonMapper.builder().addModule(new JavaTimeModule()).build(), 0);
+
+		assertThrows(QuotaExceededException.class, () -> service.makeRequestRaw("https://api.legiscan.com/"));
+		assertEquals(0, service.getRequestCount());
+	}
+
+	@Test
+	void cachedServiceBuilderSetsRequestQuotaLimit() {
+		CachedLegiscanService service = CachedLegiscanService.builder("fake-api-key")
+				.withCache(new NoOpLegiscanCache())
+				.withRequestQuotaLimit(123)
+				.build();
+
+		assertEquals(123, service.getRequestQuotaLimit());
+	}
+
+	@Test
+	void serverQuotaAlertThrowsQuotaExceededException() {
+		LegiscanResponse response = new LegiscanResponse();
+		LegiscanAlert alert = new LegiscanAlert();
+		alert.setMessage("API key has exceeded maximum query count for July 2026 (30,015 of 30,000); limit resets August 1st [Creating additional keys to bypass this limit will result in suspended access]");
+		response.setAlert(alert);
+
+		LegiscanService service = new LegiscanService("fake-api-key") {
+			@SuppressWarnings("unchecked")
+			@Override
+			public <T> T makeRequest(TypeReference<T> typeRef, String url) {
+				return (T) response;
+			}
+		};
+
+		assertThrows(QuotaExceededException.class, () -> service.makeRequest("https://api.legiscan.com/"));
+		assertThrows(QuotaExceededException.class, () -> service.makeRequestRaw("https://api.legiscan.com/"));
+		assertEquals(0, service.getRequestCount());
+	}
+	
+	private void injectFakeHttpClient(LegiscanService service) {
         try {
             Field httpClientField = LegiscanService.class.getDeclaredField("httpClient");
             httpClientField.setAccessible(true);
