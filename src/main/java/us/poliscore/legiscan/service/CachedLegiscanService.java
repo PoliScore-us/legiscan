@@ -30,6 +30,7 @@ import lombok.val;
 import us.poliscore.legiscan.cache.CachedLegiscanDatasetResult;
 import us.poliscore.legiscan.cache.FileSystemLegiscanCache;
 import us.poliscore.legiscan.cache.LegiscanCache;
+import us.poliscore.legiscan.exception.QuotaExceededException;
 import us.poliscore.legiscan.view.LegiscanAmendmentView;
 import us.poliscore.legiscan.view.LegiscanBillTextView;
 import us.poliscore.legiscan.view.LegiscanBillView;
@@ -61,6 +62,8 @@ public class CachedLegiscanService extends LegiscanService {
 
 	@Getter
 	protected RefreshFrequency freshness = RefreshFrequency.WEEKLY;
+
+	protected final List<Throwable> recoveredFailures = new ArrayList<>();
 
 	protected CachedLegiscanService(String apiKey, ObjectMapper objectMapper, LegiscanCache cache,
 			int requestQuotaLimit) {
@@ -188,6 +191,16 @@ public class CachedLegiscanService extends LegiscanService {
         this.freshness = freshness;
     }
 
+    protected synchronized void recordRecoveredFailure(Throwable t) {
+    	recoveredFailures.add(t);
+    }
+
+    public synchronized List<Throwable> consumeRecoveredFailures() {
+    	val result = new ArrayList<Throwable>(recoveredFailures);
+    	recoveredFailures.clear();
+    	return result;
+    }
+
     
     protected LegiscanResponse getOrRequest(String cacheKey, String url, ExpirationPolicy ep) {
     	val metadata = cache.peekEntry(cacheKey);
@@ -199,7 +212,17 @@ public class CachedLegiscanService extends LegiscanService {
     	}
     	
     	LOGGER.debug("Fetching object [" + cacheKey + "] from Legiscan.");
-        LegiscanResponse value = makeRequest(url);
+        LegiscanResponse value;
+        try {
+        	value = makeRequest(url);
+        } catch (QuotaExceededException e) {
+        	if (cached.isPresent()) {
+        		LOGGER.warn("Legiscan quota exceeded while refreshing [{}]. Returning stale cached value.", cacheKey, e);
+        		recordRecoveredFailure(e);
+        		return cached.get();
+        	}
+        	throw e;
+        }
         
         val expiration = ep.getTtl(Instant.now(), cacheKey);
         cache.put(cacheKey, value, expiration == null ? -1 : expiration.getSeconds());
@@ -256,8 +279,10 @@ public class CachedLegiscanService extends LegiscanService {
     public CachedLegiscanDatasetResult cacheDataset(LegiscanDatasetView dataset)
     {
     	var cachedDataset = new CachedLegiscanDatasetResult(this, dataset, objectMapper);
+    	cachedDataset.addRefreshFailures(consumeRecoveredFailures());
     	
     	cachedDataset.update(freshness);
+    	cachedDataset.addRefreshFailures(consumeRecoveredFailures());
     	
     	return cachedDataset;
     }
@@ -503,7 +528,17 @@ public class CachedLegiscanService extends LegiscanService {
     	}
     	
     	LOGGER.debug("Fetching object [" + cacheKey + "] from Legiscan.");
-        LegiscanResponse value = makeRequest(url);
+        LegiscanResponse value;
+        try {
+        	value = makeRequest(url);
+        } catch (QuotaExceededException e) {
+        	if (cached.isPresent()) {
+        		LOGGER.warn("Legiscan quota exceeded while refreshing dataset [{}]. Returning stale cached value.", cacheKey, e);
+        		recordRecoveredFailure(e);
+        		return cached.get().getDataset();
+        	}
+        	throw e;
+        }
         
         val ep = ExpirationPolicy.weekly();
         val ttl = ep.getTtl(Instant.now(), cacheKey);
@@ -538,7 +573,18 @@ public class CachedLegiscanService extends LegiscanService {
     	}
     	
     	LOGGER.debug("Fetching object [" + cacheKey + "] from Legiscan.");
-        byte[] value = makeRequestRaw(url);
+        byte[] value;
+        try {
+        	value = makeRequestRaw(url);
+        } catch (QuotaExceededException e) {
+        	if (cached.isPresent()) {
+        		validateZip(cached.get());
+        		LOGGER.warn("Legiscan quota exceeded while refreshing raw dataset [{}]. Returning stale cached zip.", cacheKey, e);
+        		recordRecoveredFailure(e);
+        		return cached.get();
+        	}
+        	throw e;
+        }
         validateZip(value);
         
         val ep = ExpirationPolicy.weekly();

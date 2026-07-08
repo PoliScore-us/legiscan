@@ -6,7 +6,9 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -52,11 +54,22 @@ public class CachedLegiscanDatasetResult {
 	@Getter
 	protected Map<Integer, LegiscanRollCallView> votes = new HashMap<Integer, LegiscanRollCallView>();
 
+	@Getter
+	protected List<Throwable> refreshFailures = new ArrayList<>();
+
 	public CachedLegiscanDatasetResult(CachedLegiscanService client, LegiscanDatasetView dataset,
 			ObjectMapper objectMapper) {
 		this.legiscan = client;
 		this.dataset = dataset;
 		this.objectMapper = objectMapper;
+	}
+
+	public void addRefreshFailures(List<Throwable> failures) {
+		refreshFailures.addAll(failures);
+	}
+
+	public boolean hasRefreshFailures() {
+		return !refreshFailures.isEmpty();
 	}
 
 	/**
@@ -234,8 +247,6 @@ public class CachedLegiscanDatasetResult {
 				bills.put(summary.getBillId(), cachedBill);
 				continue;
 			}
-
-			legiscan.getCache().remove(cacheKey);
 
 			if (bulkMatchesMaster) {
 				var resp = new LegiscanResponse();

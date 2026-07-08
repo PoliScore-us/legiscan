@@ -2,6 +2,7 @@ package us.poliscore.legiscan.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -117,6 +118,50 @@ public class LegiscanServiceTest {
 		assertThrows(QuotaExceededException.class, () -> service.makeRequest("https://api.legiscan.com/"));
 		assertThrows(QuotaExceededException.class, () -> service.makeRequestRaw("https://api.legiscan.com/"));
 		assertEquals(0, service.getRequestCount());
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	void cachedServiceReturnsStaleCacheAndRecordsQuotaFailure() {
+		LegiscanBillView bill = new LegiscanBillView();
+		bill.setBillId(123);
+
+		LegiscanResponse response = new LegiscanResponse();
+		response.setBill(bill);
+
+		LegiscanCache cache = mock(LegiscanCache.class);
+		when(cache.peekEntry("getbill/123")).thenReturn(Optional.of(new LegiscanCache.CachedEntry(response, 0, 1, null)));
+		when(cache.peek(eq("getbill/123"), any(TypeReference.class))).thenReturn(Optional.of(response));
+
+		CachedLegiscanService service = new CachedLegiscanService("fake-api-key",
+				JsonMapper.builder().addModule(new JavaTimeModule()).build(), cache, 10) {
+			@Override
+			public LegiscanResponse makeRequest(String url) {
+				throw new QuotaExceededException("quota");
+			}
+		};
+
+		assertEquals(123, service.getBill(123).getBillId());
+		assertEquals(1, service.consumeRecoveredFailures().size());
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	void cachedServiceThrowsQuotaFailureWhenNoCachedValueExists() {
+		LegiscanCache cache = mock(LegiscanCache.class);
+		when(cache.peekEntry("getbill/123")).thenReturn(Optional.empty());
+		when(cache.peek(eq("getbill/123"), any(TypeReference.class))).thenReturn(Optional.empty());
+
+		CachedLegiscanService service = new CachedLegiscanService("fake-api-key",
+				JsonMapper.builder().addModule(new JavaTimeModule()).build(), cache, 10) {
+			@Override
+			public LegiscanResponse makeRequest(String url) {
+				throw new QuotaExceededException("quota");
+			}
+		};
+
+		assertThrows(QuotaExceededException.class, () -> service.getBill(123));
+		assertTrue(service.consumeRecoveredFailures().isEmpty());
 	}
 	
 	private void injectFakeHttpClient(LegiscanService service) {
