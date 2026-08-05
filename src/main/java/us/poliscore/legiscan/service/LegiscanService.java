@@ -52,7 +52,7 @@ public class LegiscanService {
 	
 	protected static final String BASE_URL = "https://api.legiscan.com/";
 	protected static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
-	public static final String DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE = "8000";
+	public static final String DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE = "4000";
 	public static final int DEFAULT_REQUEST_QUOTA_LIMIT = Integer.parseInt(DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE);
 
 	protected final String apiKey;

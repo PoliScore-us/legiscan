@@ -2,7 +2,9 @@
 package us.poliscore.legiscan.view;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -60,6 +62,37 @@ public class LegiscanBillView {
     
     @JsonProperty("progress")
     protected List<LegiscanProgressView> progress;
+
+    @JsonIgnore
+    public LocalDate getLastUpdateDate() {
+        List<LocalDate> dates = new ArrayList<>();
+
+        if (statusDate != null) {
+            dates.add(statusDate);
+        }
+
+        if (history != null) {
+            dates.addAll(history.stream().map(LegiscanHistoryView::getDate).filter(Objects::nonNull).toList());
+        }
+
+        if (progress != null) {
+            dates.addAll(progress.stream().map(LegiscanProgressView::getDate).filter(Objects::nonNull).toList());
+        }
+
+        if (texts != null) {
+            dates.addAll(texts.stream().map(LegiscanTextMetadataView::getDate).filter(Objects::nonNull).toList());
+        }
+
+        if (votes != null) {
+            dates.addAll(votes.stream().map(LegiscanVoteView::getDate).filter(Objects::nonNull).toList());
+        }
+
+        if (amendments != null) {
+            dates.addAll(amendments.stream().map(LegiscanAmendmentView::getDate).filter(Objects::nonNull).toList());
+        }
+
+        return dates.stream().max(LocalDate::compareTo).orElse(null);
+    }
     
     @JsonProperty("state")
     protected String stateCode;

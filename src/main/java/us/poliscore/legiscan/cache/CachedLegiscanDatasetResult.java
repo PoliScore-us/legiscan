@@ -220,6 +220,7 @@ public class CachedLegiscanDatasetResult {
 	 */
 	protected void updateBills(RefreshFrequency freq) {
 		var masterlist = legiscan.getMasterList(dataset.getSessionId());
+		var billsToRefresh = new ArrayList<LegiscanMasterListView.BillSummary>();
 
 		for (var summary : masterlist.getBills().values()) {
 			String cacheKey = LegiscanBillView.getCacheKey(summary.getBillId());
@@ -256,20 +257,38 @@ public class CachedLegiscanDatasetResult {
 				continue;
 			}
 
-			var bill = legiscan.getBill(summary.getBillId());
-			bills.put(bill.getBillId(), bill);
-			long ttlSecs = getBillCacheTtlSecs(cacheKey, freq);
+			billsToRefresh.add(summary);
+		}
 
-			if (!billMatchesSummary(bill, summary)) {
-				LOGGER.error("Legiscan sync mismatch. Bill [{} : {} {}] of dataset {} {} does not match masterlist. "
-						+ "Masterlist says hash={}, statusDate={}, lastActionDate={}, lastAction='{}'. "
-						+ "getBill returned hash={}, statusDate={}, latestActionDate={}. Caching briefly to avoid spamming.",
-						bill.getBillId(), bill.getBillNumber(), bill.getBillTypeCode(),
-						dataset.getState().getAbbreviation(), dataset.getSessionId(), summary.getChangeHash(),
-						summary.getStatusDate(), summary.getLastActionDate(), summary.getLastAction(),
-						bill.getChangeHash(), bill.getStatusDate(), latestBillActionDate(bill));
-				ttlSecs = ExpirationPolicy.fixedDuration(Duration.ofHours(24)).getTtl(Instant.now(), cacheKey)
-						.getSeconds();
+		if (!masterlist.getBills().isEmpty() && billsToRefresh.size() == masterlist.getBills().size()) {
+			throw new IllegalStateException("Sanity check failed after Legiscan bulk load for dataset ["
+					+ dataset.getState().getAbbreviation() + "] [" + dataset.getSessionName()
+					+ "]: all " + billsToRefresh.size()
+					+ " masterlist bills would require individual refreshes.");
+		}
+
+		for (var summary : billsToRefresh) {
+			String cacheKey = LegiscanBillView.getCacheKey(summary.getBillId());
+			long ttlSecs = getBillCacheTtlSecs(cacheKey, freq);
+			var bill = bills.get(summary.getBillId());
+			
+			// Weekly frequencies are only populated via the bulk loader. We're not allowed to fetch from legiscan here.
+			if (freq != RefreshFrequency.WEEKLY) {
+				// HEADS UP : This will result in a request to Legiscan
+				bill = legiscan.getBill(summary.getBillId());
+				bills.put(bill.getBillId(), bill);
+	
+				if (!billMatchesSummary(bill, summary)) {
+					LOGGER.error("Legiscan sync mismatch. Bill [{} : {} {}] of dataset {} {} does not match masterlist. "
+							+ "Masterlist says hash={}, statusDate={}, lastActionDate={}, lastAction='{}'. "
+							+ "getBill returned hash={}, statusDate={}, latestActionDate={}. Caching briefly to avoid spamming.",
+							bill.getBillId(), bill.getBillNumber(), bill.getBillTypeCode(),
+							dataset.getState().getAbbreviation(), dataset.getSessionId(), summary.getChangeHash(),
+							summary.getStatusDate(), summary.getLastActionDate(), summary.getLastAction(),
+							bill.getChangeHash(), bill.getStatusDate(), latestBillActionDate(bill));
+					ttlSecs = ExpirationPolicy.fixedDuration(Duration.ofHours(24)).getTtl(Instant.now(), cacheKey)
+							.getSeconds();
+				}
 			}
 
 			var resp = new LegiscanResponse();
