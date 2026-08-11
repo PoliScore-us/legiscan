@@ -171,7 +171,7 @@ public class CachedLegiscanDatasetResult {
 						var cachedResp = objectMapper.convertValue(cached.getValue(), new TypeReference<LegiscanResponse>() {
 						});
 						var cachedBill = cachedResp.getBill();
-						if (isBillFresher(bill, cachedBill)) {
+						if (compareBillFreshness(bill, cachedBill) >= 0) {
 							val ttl = ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey);
 							legiscan.getCache().put(cacheKey, resp, ttl.getSeconds());
 							bills.put(bill.getBillId(), bill);
@@ -341,39 +341,48 @@ public class CachedLegiscanDatasetResult {
 		return latest;
 	}
 
-	protected boolean isBillFresher(LegiscanBillView candidate, LegiscanBillView current) {
+	/**
+	 * Compares bills by freshness.
+	 *
+	 * @return a positive value if candidate is fresher,
+	 *         a negative value if current is fresher,
+	 *         or zero if they are equally fresh
+	 */
+	protected int compareBillFreshness(
+			LegiscanBillView candidate,
+			LegiscanBillView current) {
+
+		if (candidate == current)
+			return 0;
 		if (candidate == null)
-			return false;
+			return -1;
 		if (current == null)
-			return true;
+			return 1;
 
-		LocalDate candidateActionDate = latestBillActionDate(candidate);
-		LocalDate currentActionDate = latestBillActionDate(current);
-		if (candidateActionDate != null || currentActionDate != null) {
-			if (candidateActionDate == null)
-				return false;
-			if (currentActionDate == null)
-				return true;
-			if (candidateActionDate.isAfter(currentActionDate))
-				return true;
-			if (candidateActionDate.isBefore(currentActionDate))
-				return false;
-		}
+		int actionDateComparison = compareNullableDates(
+				latestBillActionDate(candidate),
+				latestBillActionDate(current));
 
-		LocalDate candidateStatusDate = candidate.getStatusDate();
-		LocalDate currentStatusDate = current.getStatusDate();
-		if (candidateStatusDate != null || currentStatusDate != null) {
-			if (candidateStatusDate == null)
-				return false;
-			if (currentStatusDate == null)
-				return true;
-			if (candidateStatusDate.isAfter(currentStatusDate))
-				return true;
-			if (candidateStatusDate.isBefore(currentStatusDate))
-				return false;
-		}
+		if (actionDateComparison != 0)
+			return actionDateComparison;
 
-		return false;
+		return compareNullableDates(
+				candidate.getStatusDate(),
+				current.getStatusDate());
+	}
+
+	/**
+	 * Treats null as older than any non-null date.
+	 */
+	private int compareNullableDates(LocalDate candidate, LocalDate current) {
+		if (candidate == current)
+			return 0;
+		if (candidate == null)
+			return -1;
+		if (current == null)
+			return 1;
+
+		return candidate.compareTo(current);
 	}
 	
 	protected long getBillCacheTtlSecs(String cacheKey, RefreshFrequency freq) {
