@@ -38,6 +38,7 @@ import us.poliscore.legiscan.view.LegiscanSessionView;
 import us.poliscore.legiscan.view.LegiscanSponsoredBillView;
 import us.poliscore.legiscan.view.LegiscanState;
 import us.poliscore.legiscan.view.LegiscanSupplementView;
+import us.poliscore.legiscan.view.RefreshFrequency;
 
 /**
  * Implements a basic communication bridge between the Legiscan API, adhering somewhat strictly to the Legiscan API documentation.
@@ -53,6 +54,7 @@ public class LegiscanService {
 	protected static final String BASE_URL = "https://api.legiscan.com/";
 	protected static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 	public static final String DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE = "4000";
+	public static final RefreshFrequency DEFAULT_DATA_FRESHNESS = RefreshFrequency.WEEKLY;
 	public static final int DEFAULT_REQUEST_QUOTA_LIMIT = Integer.parseInt(DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE);
 
 	protected final String apiKey;

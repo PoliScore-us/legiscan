@@ -44,7 +44,7 @@ public class CachedLegiscanDatasetResult {
 	protected LegiscanDatasetView dataset;
 
 	protected ObjectMapper objectMapper;
-
+	
 	@Getter
 	protected Map<Integer, LegiscanBillView> bills = new HashMap<Integer, LegiscanBillView>();
 
@@ -83,9 +83,11 @@ public class CachedLegiscanDatasetResult {
 	public void update(RefreshFrequency freq) {
 		LOGGER.debug("Updating dataset [" + dataset.getSessionName() + "] from Legiscan.");
 
-		bulkLoad();
+		Map<Integer, LegiscanBillView> bulkBills = new HashMap<Integer, LegiscanBillView>();
+		
+		bulkLoad(bulkBills);
 
-		updateBills(freq);
+		updateBillCache(bulkBills, freq);
 
 		LOGGER.debug("Dataset [" + dataset.getSessionName() + "] successfully updated.");
 	}
@@ -100,7 +102,7 @@ public class CachedLegiscanDatasetResult {
 	 * up-to-date than what we currently have for bills.
 	 */
 	@SneakyThrows
-	protected void bulkLoad() {
+	protected void bulkLoad(Map<Integer, LegiscanBillView> bulkBills) {
 
 		byte[] zipBytes = legiscan.getDatasetRaw(dataset.getSessionId(), dataset.getAccessKey(), "json",
 				dataset.getDatasetHash());
@@ -157,28 +159,9 @@ public class CachedLegiscanDatasetResult {
 
 					var resp = objectMapper.readValue(file, LegiscanResponse.class);
 					var bill = resp.getBill();
-
-					// Bulk and per-bill fetches can get ahead of each other. Prefer whichever
-					// copy has the newer action/status dates, and repair the per-bill cache when
-					// the bulk bill is clearly fresher.
-					String cacheKey = LegiscanBillView.getCacheKey(bill.getBillId());
-					var cached = legiscan.getCache().peekEntry(cacheKey).orElse(null);
-					if (cached == null) {
-						val ttl = ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey);
-						legiscan.getCache().put(cacheKey, resp, ttl.getSeconds());
-						bills.put(bill.getBillId(), bill);
-					} else {
-						var cachedResp = objectMapper.convertValue(cached.getValue(), new TypeReference<LegiscanResponse>() {
-						});
-						var cachedBill = cachedResp.getBill();
-						if (compareBillFreshness(bill, cachedBill) >= 0) {
-							val ttl = ExpirationPolicy.fixedDuration(Duration.ofHours(3)).getTtl(Instant.now(), cacheKey);
-							legiscan.getCache().put(cacheKey, resp, ttl.getSeconds());
-							bills.put(bill.getBillId(), bill);
-						} else {
-							bills.put(bill.getBillId(), cachedBill);
-						}
-					}
+					
+					bulkBills.put(bill.getBillId(), bill);
+					bills.put(bill.getBillId(), bill);
 				}
 
 				for (File f : PoliscoreLegiscanUtil.allFilesWhere(fVoteParent,
@@ -210,15 +193,23 @@ public class CachedLegiscanDatasetResult {
 	}
 
 	/**
-	 * Fetches the masterlist and checks to see if the bill we got from bulk loading
-	 * matches against the masterlist.
+	 * There are three separate bill objects that have to be reconciled: the bulk bill, the cache bill, and a fresh bill fetched from Legiscan.
+	 * 
+	 * Legiscan is very clear: the only thing you're allowed to do here is check the bill hash against the master list. If it matches, it's up-to-date. If not, it isn't.
+	 * 
+	 * The devil here is in the details. The bulk and cached bill could not match the masterlist, but then we could fetch straight from Legiscan and have it still not match the
+	 * masterlist.
+	 * 
+	 * The official Legiscan client is incredibly simplistic and functions as follows:
+	 * - bulk load: runs once a week, on schedule, and replaces every bill in the database
+	 * - update: runs once a day, loops over the masterlist and fetches bills that don't match the change hash.
 	 *
 	 * Behavior by freshness: - WEEKLY: prefer the cached or bulk bill when it
 	 * agrees with the richer masterlist metadata. - More aggressive than WEEKLY
 	 * (for example DAILY): still fall back to getBill when the current copy does not
 	 * match the masterlist.
 	 */
-	protected void updateBills(RefreshFrequency freq) {
+	protected void updateBillCache(Map<Integer, LegiscanBillView> bulkBills, RefreshFrequency freq) {
 		var masterlist = legiscan.getMasterList(dataset.getSessionId());
 		var billsToRefresh = new ArrayList<LegiscanMasterListView.BillSummary>();
 
@@ -230,22 +221,14 @@ public class CachedLegiscanDatasetResult {
 					: objectMapper.convertValue(cachedEntry.getValue(), new TypeReference<LegiscanResponse>() {
 					});
 			var cachedBill = cachedVal == null ? null : cachedVal.getBill();
-			var bulkBill = bills.get(summary.getBillId());
+			var bulkBill = bulkBills.get(summary.getBillId());
 
 			boolean cachedMatchesMaster = billMatchesSummary(cachedBill, summary);
 			boolean bulkMatchesMaster = billMatchesSummary(bulkBill, summary);
 
 			if (cachedMatchesMaster) {
 				bills.put(summary.getBillId(), cachedBill);
-
-				if (cachedEntry != null && cachedEntry.isExpired(freq)) {
-					legiscan.getCache().put(cacheKey, cachedVal, getBillCacheTtlSecs(cacheKey, freq));
-				}
-				continue;
-			}
-
-			if (cachedEntry != null && cachedBill != null && !cachedEntry.isExpired(null)) {
-				bills.put(summary.getBillId(), cachedBill);
+				legiscan.getCache().put(cacheKey, cachedVal, getBillCacheTtlSecs(cacheKey, freq));
 				continue;
 			}
 
@@ -257,64 +240,59 @@ public class CachedLegiscanDatasetResult {
 				continue;
 			}
 
-			billsToRefresh.add(summary);
+			if (freq != RefreshFrequency.WEEKLY && (cachedBill == null || cachedEntry == null || cachedEntry.isExpired(null)))
+				billsToRefresh.add(summary); // Heads Up : This will cause the bill to be fetched from Legiscan
+			else if (cachedBill != null)
+				bills.put(summary.getBillId(), cachedBill);
+			else if (bulkBill != null)
+				bills.put(summary.getBillId(), bulkBill);
 		}
 
-		if (!masterlist.getBills().isEmpty() && billsToRefresh.size() == masterlist.getBills().size()) {
-			throw new IllegalStateException("Sanity check failed after Legiscan bulk load for dataset ["
-					+ dataset.getState().getAbbreviation() + "] [" + dataset.getSessionName()
-					+ "]: all " + billsToRefresh.size()
-					+ " masterlist bills would require individual refreshes.");
+		if ((!masterlist.getBills().isEmpty() && billsToRefresh.size() == masterlist.getBills().size())
+				|| legiscan.getRequestCount() >= legiscan.getRequestQuotaLimit()) {
+			throw new IllegalStateException("Number of required bill refreshes [" + billsToRefresh.size() + "] would exceed quota limit [" + legiscan.getRequestQuotaLimit() + "] for dataset [" + dataset.toString() + "]");
 		}
+		
+		LOGGER.info("About to request " + billsToRefresh.size() + " bills from Legiscan for dataset " + dataset.toString());
 
+		// Request a batch of bills from Legiscan
 		for (var summary : billsToRefresh) {
 			String cacheKey = LegiscanBillView.getCacheKey(summary.getBillId());
-			long ttlSecs = getBillCacheTtlSecs(cacheKey, freq);
-			var bill = bills.get(summary.getBillId());
 			
-			// Weekly frequencies are only populated via the bulk loader. We're not allowed to fetch from legiscan here.
-			if (freq != RefreshFrequency.WEEKLY) {
-				// HEADS UP : This will result in a request to Legiscan
-				bill = legiscan.getBill(summary.getBillId());
-				bills.put(bill.getBillId(), bill);
-	
-				if (!billMatchesSummary(bill, summary)) {
-					LOGGER.error("Legiscan sync mismatch. Bill [{} : {} {}] of dataset {} {} does not match masterlist. "
-							+ "Masterlist says hash={}, statusDate={}, lastActionDate={}, lastAction='{}'. "
-							+ "getBill returned hash={}, statusDate={}, latestActionDate={}. Caching briefly to avoid spamming.",
-							bill.getBillId(), bill.getBillNumber(), bill.getBillTypeCode(),
-							dataset.getState().getAbbreviation(), dataset.getSessionId(), summary.getChangeHash(),
-							summary.getStatusDate(), summary.getLastActionDate(), summary.getLastAction(),
-							bill.getChangeHash(), bill.getStatusDate(), latestBillActionDate(bill));
-					ttlSecs = ExpirationPolicy.fixedDuration(Duration.ofHours(24)).getTtl(Instant.now(), cacheKey)
-							.getSeconds();
-				}
-			}
+			LegiscanBillView bill = legiscan.getBill(summary.getBillId());
+			bills.put(bill.getBillId(), bill);
 
 			var resp = new LegiscanResponse();
 			resp.setBill(bill);
-			legiscan.getCache().put(cacheKey, resp, ttlSecs);
+			legiscan.getCache().put(cacheKey, resp, getBillCacheTtlSecs(cacheKey, freq));
 		}
 	}
-
+	
+//	protected boolean billMatchesSummary(LegiscanBillView bill, LegiscanMasterListView.BillSummary summary) {
+//		if (bill == null)
+//			return false;
+//
+//		if (!Objects.equals(summary.getChangeHash(), bill.getChangeHash()))
+//			return false;
+//
+//		if (summary.getStatusDate() != null
+//				&& (bill.getStatusDate() == null || bill.getStatusDate().isBefore(summary.getStatusDate())))
+//			return false;
+//
+//		if (summary.getLastActionDate() != null) {
+//			LocalDate latestActionDate = latestBillActionDate(bill);
+//			if (latestActionDate == null || latestActionDate.isBefore(summary.getLastActionDate()))
+//				return false;
+//		}
+//
+//		return true;
+//	}
+	
+	// The only thing we're allowed to do is check the change hash.
 	protected boolean billMatchesSummary(LegiscanBillView bill, LegiscanMasterListView.BillSummary summary) {
-		if (bill == null)
-			return false;
-
-		if (!Objects.equals(summary.getChangeHash(), bill.getChangeHash()))
-			return false;
-
-		if (summary.getStatusDate() != null
-				&& (bill.getStatusDate() == null || bill.getStatusDate().isBefore(summary.getStatusDate())))
-			return false;
-
-		if (summary.getLastActionDate() != null) {
-			LocalDate latestActionDate = latestBillActionDate(bill);
-			if (latestActionDate == null || latestActionDate.isBefore(summary.getLastActionDate()))
-				return false;
-		}
-
-		return true;
+		if (bill == null || summary == null) return false;
+		
+		return Objects.equals(summary.getChangeHash(), bill.getChangeHash());
 	}
 
 	protected LocalDate latestBillActionDate(LegiscanBillView bill) {

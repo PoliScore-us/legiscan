@@ -61,7 +61,7 @@ public class CachedLegiscanService extends LegiscanService {
 	protected final LegiscanCache cache;
 
 	@Getter
-	protected RefreshFrequency freshness = RefreshFrequency.WEEKLY;
+	protected RefreshFrequency freshness = LegiscanService.DEFAULT_DATA_FRESHNESS;
 
 	protected final List<Throwable> recoveredFailures = new ArrayList<>();
 
