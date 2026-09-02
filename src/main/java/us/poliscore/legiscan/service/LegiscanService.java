@@ -129,8 +129,9 @@ public class LegiscanService {
 		} catch (LegiscanException e) {
 			throw e;
 		} catch (Exception e) {
-			LOGGER.error("Error during Legiscan API call to: " + url, e);
-			throw new LegiscanException("Failed to call Legiscan API: " + url, e);
+			String safeUrl = redactApiKey(url);
+			LOGGER.error("Error during Legiscan API call to: " + safeUrl, e);
+			throw new LegiscanException("Failed to call Legiscan API: " + safeUrl, e);
 		}
 	}
 
@@ -144,7 +145,7 @@ public class LegiscanService {
 					.GET()
 					.build();
 
-			LOGGER.info("Making Legiscan API request to: " + url);
+			LOGGER.info("Making Legiscan API request to: " + redactApiKey(url));
 			HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
 			if (response.statusCode() == 200) {
@@ -156,9 +157,14 @@ public class LegiscanService {
 		} catch (LegiscanException e) {
 			throw e;
 		} catch (Exception e) {
-			LOGGER.error("Error during raw Legiscan API call to: " + url, e);
-			throw new LegiscanException("Failed to call Legiscan API (raw): " + url, e);
+			String safeUrl = redactApiKey(url);
+			LOGGER.error("Error during raw Legiscan API call to: " + safeUrl, e);
+			throw new LegiscanException("Failed to call Legiscan API (raw): " + safeUrl, e);
 		}
+	}
+
+	static String redactApiKey(String url) {
+		return url == null ? null : url.replaceAll("([?&]key=)[^&]*", "$1[REDACTED]");
 	}
 
 	protected void recordRequestOrThrow() {

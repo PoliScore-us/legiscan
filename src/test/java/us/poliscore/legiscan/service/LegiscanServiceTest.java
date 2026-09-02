@@ -101,6 +101,16 @@ public class LegiscanServiceTest {
 	}
 
 	@Test
+	void redactsApiKeyFromLoggedUrls() {
+		assertEquals(
+				"https://api.legiscan.com/?key=[REDACTED]&op=getBill&id=123",
+				LegiscanService.redactApiKey("https://api.legiscan.com/?key=super-secret&op=getBill&id=123"));
+		assertEquals(
+				"https://example.test/?op=getBill&key=[REDACTED]",
+				LegiscanService.redactApiKey("https://example.test/?op=getBill&key=super-secret"));
+	}
+
+	@Test
 	void serverQuotaAlertThrowsQuotaExceededException() {
 		LegiscanResponse response = new LegiscanResponse();
 		LegiscanAlert alert = new LegiscanAlert();
