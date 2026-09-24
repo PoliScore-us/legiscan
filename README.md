@@ -6,6 +6,8 @@ Provides reusable Java utilities for connecting to and fetching data from a remo
 
 https://legiscan.com/legiscan
 
+This library is compliant with all the latest Legiscan API requirements.
+
 The primary offerings of this library are as follows:
 1. [LegiscanService](https://github.com/poliscore-us/legiscan/blob/main/src/main/java/us/poliscore/legiscan/service/LegiscanService.java) - A basic communication service which implements the full Legiscan HTTP API
 2. [CachedLegiscanService](https://github.com/poliscore-us/legiscan/blob/main/src/main/java/us/poliscore/legiscan/service/CachedLegiscanService.java) - A caching wrapper around the LegiscanService. Extends the default API with the 'cacheDataset' method.
@@ -24,6 +26,17 @@ The 'cacheDataset' operation allows you to download, unzip, and store a Legiscan
 The `--cache-dir` parameter allows you to change where the cache is stored.
 
 cacheDataset is a combination of a few different Legiscan API methods. First, the operation invokes 'getDatasetRaw' to download the dataset in bulk. The response is then unzipped and loaded into the cache. Then, 'getMasterListRaw' is invoked and the 'change_hash' is checked for every bill in the dataset to ensure that the dataset is fully up-to-date. Out of date bills are updated with the 'getBill' operation. Finally, if 'cacheDataset' is run again at some point in the future, any previously fetched bills will have their cache TTL refreshed.
+
+## API Compliance
+
+As mentioned, this library is compliant with the latest Legiscan API usage requirements, including:
+1. Monthly API limit restrictions
+2. Rate-limiting (max 600ms) for frequent requests
+3. Bulk-fetching and masterlist hash checking
+4. Maximum "freshness" guarantees, which are API call specific
+
+A ton of work has been put into making sure that you can invoke any arbitrary API method, and behind the scenes this library makes sure that proper caching and rate limiting is enforced to make sure you never blow your Legiscan quota.
+
 
 ## Usage
 
@@ -86,13 +99,13 @@ Here's a few examples:
 
 ```
 # Download the poliscore legiscan 'far jar' from maven central
-mvn dependency:copy -Dartifact=us.poliscore:legiscan:1.1.2:jar:cli -DoutputDirectory=.
+mvn dependency:copy -Dartifact=us.poliscore:legiscan:1.2.0:jar:cli -DoutputDirectory=.
 
 # Cache a dataset
-java -jar legiscan-1.1.2-cli.jar --key 123 -op cacheDataset --state US --year 2020
+java -jar legiscan-1.2.0-cli.jar --key 123 -op cacheDataset --state US --year 2020
 
 # Manually fetch a bill
-java -jar legiscan-1.1.2-cli.jar --key 123 -op getBill --id 2028513
+java -jar legiscan-1.2.0-cli.jar --key 123 -op getBill --id 2028513
 ```
 
 Just replace '--key 123' with your legiscan key. This library has been developed and tested on Java 21.
@@ -106,7 +119,7 @@ This library has been published to Maven central and can be added as a library d
 <dependency>
     <groupId>us.poliscore</groupId>
     <artifactId>legiscan</artifactId>
-    <version>1.1.2</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
