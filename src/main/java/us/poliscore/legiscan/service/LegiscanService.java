@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -54,24 +55,38 @@ public class LegiscanService {
 	protected static final String BASE_URL = "https://api.legiscan.com/";
 	protected static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 	public static final String DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE = "4000";
+	public static final String DEFAULT_REQUEST_INTERVAL_MILLIS_CONFIG_VALUE = "600";
 	public static final RefreshFrequency DEFAULT_DATA_FRESHNESS = RefreshFrequency.WEEKLY;
 	public static final int DEFAULT_REQUEST_QUOTA_LIMIT = Integer.parseInt(DEFAULT_REQUEST_QUOTA_LIMIT_CONFIG_VALUE);
+	public static final long DEFAULT_REQUEST_INTERVAL_MILLIS = Long.parseLong(DEFAULT_REQUEST_INTERVAL_MILLIS_CONFIG_VALUE);
 
 	protected final String apiKey;
 	protected final ObjectMapper objectMapper;
 	protected final HttpClient httpClient;
 	protected final int requestQuotaLimit;
+	protected final long requestIntervalMillis;
 	protected final AtomicInteger requestCount = new AtomicInteger(0);
 	protected final AtomicBoolean serverQuotaExceeded = new AtomicBoolean(false);
+	private final Object requestRateLimitLock = new Object();
+	private long nextRequestNanos;
 
 	public LegiscanService(String apiKey, ObjectMapper objectMapper) {
 		this(apiKey, objectMapper, DEFAULT_REQUEST_QUOTA_LIMIT);
 	}
 
 	public LegiscanService(String apiKey, ObjectMapper objectMapper, int requestQuotaLimit) {
+		this(apiKey, objectMapper, requestQuotaLimit, DEFAULT_REQUEST_INTERVAL_MILLIS);
+	}
+
+	public LegiscanService(String apiKey, ObjectMapper objectMapper, int requestQuotaLimit,
+			long requestIntervalMillis) {
+		if (requestIntervalMillis < 0) {
+			throw new IllegalArgumentException("Legiscan request interval cannot be negative.");
+		}
 		this.apiKey = apiKey;
 		this.objectMapper = objectMapper;
 		this.requestQuotaLimit = requestQuotaLimit;
+		this.requestIntervalMillis = requestIntervalMillis;
 
 		this.httpClient = HttpClient.newBuilder()
 			    .connectTimeout(REQUEST_TIMEOUT)
@@ -89,6 +104,10 @@ public class LegiscanService {
 
 	public int getRequestCount() {
 		return requestCount.get();
+	}
+
+	public long getRequestIntervalMillis() {
+		return requestIntervalMillis;
 	}
 
 	protected String buildUrl(String endpoint, String... params) {
@@ -137,6 +156,7 @@ public class LegiscanService {
 
 	public byte[] makeRequestRaw(String url) {
 		recordRequestOrThrow();
+		awaitRequestPermit();
 
 		try {
 			HttpRequest request = HttpRequest.newBuilder()
@@ -186,6 +206,26 @@ public class LegiscanService {
 			if (requestCount.compareAndSet(current, current + 1)) {
 				return;
 			}
+		}
+	}
+
+	protected void awaitRequestPermit() {
+		if (requestIntervalMillis == 0) {
+			return;
+		}
+
+		synchronized (requestRateLimitLock) {
+			long waitNanos = nextRequestNanos - System.nanoTime();
+			if (waitNanos > 0) {
+				try {
+					TimeUnit.NANOSECONDS.sleep(waitNanos);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throw new LegiscanException("Interrupted while waiting for the Legiscan request rate limit.", e);
+				}
+			}
+
+			nextRequestNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(requestIntervalMillis);
 		}
 	}
 
@@ -434,7 +474,7 @@ public class LegiscanService {
      * @return Page of search results based on relevance to the given search parameters. The change_hash should be stored for a quick comparison on subsequent calls to detect when bills have changed and need updating.
      */
     public LegiscanSearchView getSearch(int sessionId, String query, Integer page) {
-        String url = buildUrl("getSearch", "query", query, "id", String.valueOf(sessionId), "year", "page", String.valueOf(page));
+        String url = buildUrl("getSearch", "query", query, "id", String.valueOf(sessionId), "page", String.valueOf(page));
         return makeRequest(new TypeReference<LegiscanResponse>() {}, url).getSearchresult();
     }
     
@@ -474,7 +514,7 @@ public class LegiscanService {
      * @return Page of search results based on relevance to the given search parameters. The change_hash should be stored for a quick comparison on subsequent calls to detect when bills have changed and need updating
      */
     public LegiscanSearchView getSearchRaw(int sessionId, String query, Integer page) {
-        String url = buildUrl("getSearchRaw", "query", query, "id", String.valueOf(sessionId), "year", "page", String.valueOf(page));
+        String url = buildUrl("getSearchRaw", "query", query, "id", String.valueOf(sessionId), "page", String.valueOf(page));
         return makeRequest(new TypeReference<LegiscanResponse>() {}, url).getSearchresult();
     }
     

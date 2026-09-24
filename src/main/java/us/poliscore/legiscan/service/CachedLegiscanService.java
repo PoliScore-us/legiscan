@@ -67,7 +67,12 @@ public class CachedLegiscanService extends LegiscanService {
 
 	protected CachedLegiscanService(String apiKey, ObjectMapper objectMapper, LegiscanCache cache,
 			int requestQuotaLimit) {
-		super(apiKey, objectMapper, requestQuotaLimit);
+		this(apiKey, objectMapper, cache, requestQuotaLimit, LegiscanService.DEFAULT_REQUEST_INTERVAL_MILLIS);
+	}
+
+	protected CachedLegiscanService(String apiKey, ObjectMapper objectMapper, LegiscanCache cache,
+			int requestQuotaLimit, long requestIntervalMillis) {
+		super(apiKey, objectMapper, requestQuotaLimit, requestIntervalMillis);
 		this.cache = cache;
 	}
 
@@ -82,6 +87,7 @@ public class CachedLegiscanService extends LegiscanService {
 		protected File cacheDirectory;
 		protected RefreshFrequency freshness = null;
 		protected int requestQuotaLimit = LegiscanService.DEFAULT_REQUEST_QUOTA_LIMIT;
+		protected long requestIntervalMillis = LegiscanService.DEFAULT_REQUEST_INTERVAL_MILLIS;
 
 		public Builder(String apiKey) {
 			this.apiKey = apiKey;
@@ -126,6 +132,11 @@ public class CachedLegiscanService extends LegiscanService {
 			return this;
 		}
 
+		public Builder withRequestIntervalMillis(long requestIntervalMillis) {
+			this.requestIntervalMillis = requestIntervalMillis;
+			return this;
+		}
+
 		public Builder withCache(LegiscanCache cache) {
 			this.cache = cache;
 			return this;
@@ -152,7 +163,8 @@ public class CachedLegiscanService extends LegiscanService {
 				this.cache = new FileSystemLegiscanCache(dir, this.objectMapper);
 			}
 
-			var client = new CachedLegiscanService(apiKey, objectMapper, cache, requestQuotaLimit);
+			var client = new CachedLegiscanService(apiKey, objectMapper, cache, requestQuotaLimit,
+					requestIntervalMillis);
 
 			if (freshness != null)
 				client.setFreshness(freshness);

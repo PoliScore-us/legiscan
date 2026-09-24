@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -111,8 +112,9 @@ public class CachedLegiscanDatasetResult {
 		// some reason... So we have to fetch people manually.
 		val sessionPeople = legiscan.getSessionPeople(dataset.getSessionId());
 
-		// Write zipBytes to a temporary file
-		Path tempZip = Files.createTempFile("dataset-", ".zip");
+		Path stagingDir = Files.createTempDirectory("legiscan-dataset-");
+		Path tempZip = stagingDir.resolve("dataset.zip");
+		Path extractToDir = stagingDir.resolve("contents");
 
 		File file = null;
 
@@ -121,13 +123,11 @@ public class CachedLegiscanDatasetResult {
 
 			// Use ZipFile from zip4j to extract
 			try (ZipFile zipFile = new ZipFile(tempZip.toFile())) {
-				File extractToDir = new File(PoliscoreLegiscanUtil.getDeployedPath(),
-						"cache/" + dataset.getStateId() + "/" + dataset.getYearEnd() + "/" + dataset.getSessionId());
-				zipFile.extractAll(extractToDir.getAbsolutePath());
+				zipFile.extractAll(extractToDir.toString());
 
-//                File fPeopleParent = PoliscoreLegiscanUtil.childWithName(extractToDir, "people");
-				File fBillParent = PoliscoreLegiscanUtil.childWithName(extractToDir, "bill");
-				File fVoteParent = PoliscoreLegiscanUtil.childWithName(extractToDir, "vote");
+//                File fPeopleParent = PoliscoreLegiscanUtil.childWithName(extractToDir.toFile(), "people");
+				File fBillParent = PoliscoreLegiscanUtil.childWithName(extractToDir.toFile(), "bill");
+				File fVoteParent = PoliscoreLegiscanUtil.childWithName(extractToDir.toFile(), "vote");
 
 //                for(File f : PoliscoreLegiscanUtil.allFilesWhere(fPeopleParent, f -> f.getName().toLowerCase().endsWith(".json")))
 //                {
@@ -177,19 +177,29 @@ public class CachedLegiscanDatasetResult {
 				}
 			}
 		} catch (Throwable t) {
-			Files.deleteIfExists(tempZip);
-
 			if (file != null)
 				throw new RuntimeException(
 						"Encountered problem while processing file [" + file.getAbsolutePath() + "].", t);
 			else
 				throw t;
+		} finally {
+			deleteRecursively(stagingDir);
 		}
 
 		LOGGER.info("Bulk load complete for dataset [" + dataset.getState().getAbbreviation() + "] ["
 				+ dataset.getSessionName() + "] into cache [" + legiscan.getCache().toString() + "]. Dataset contained "
 				+ people.size() + " people, " + bills.size() + " bills, and " + votes.size() + " votes.");
 
+	}
+
+	private void deleteRecursively(Path root) {
+		try (var paths = Files.walk(root)) {
+			for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+				Files.deleteIfExists(path);
+			}
+		} catch (Exception e) {
+			LOGGER.warn("Failed to clean up temporary Legiscan dataset directory [{}].", root, e);
+		}
 	}
 
 	/**

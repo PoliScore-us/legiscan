@@ -1,6 +1,7 @@
 package us.poliscore.legiscan.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -95,9 +96,51 @@ public class LegiscanServiceTest {
 		CachedLegiscanService service = CachedLegiscanService.builder("fake-api-key")
 				.withCache(new NoOpLegiscanCache())
 				.withRequestQuotaLimit(123)
+				.withRequestIntervalMillis(25)
 				.build();
 
 		assertEquals(123, service.getRequestQuotaLimit());
+		assertEquals(25, service.getRequestIntervalMillis());
+	}
+
+	@Test
+	void requestIntervalDefaultsToSixHundredMillis() {
+		LegiscanService service = new LegiscanService("fake-api-key");
+
+		assertEquals(600, service.getRequestIntervalMillis());
+	}
+
+	@Test
+	void requestPermitWaitsForConfiguredInterval() {
+		LegiscanService service = new LegiscanService("fake-api-key",
+				JsonMapper.builder().addModule(new JavaTimeModule()).build(), 10, 40);
+
+		service.awaitRequestPermit();
+		long startedAt = System.nanoTime();
+		service.awaitRequestPermit();
+		long elapsedMillis = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+
+		assertTrue(elapsedMillis >= 30, "Expected the second request permit to be delayed, but waited "
+				+ elapsedMillis + " ms");
+	}
+
+	@Test
+	void negativeRequestIntervalIsRejected() {
+		assertThrows(IllegalArgumentException.class, () -> new LegiscanService("fake-api-key",
+				JsonMapper.builder().addModule(new JavaTimeModule()).build(), 10, -1));
+	}
+
+	@Test
+	void sessionSearchesUsePageParameter() {
+		CapturingLegiscanService service = new CapturingLegiscanService();
+
+		service.getSearch(2173, "tax credits", 3);
+		assertTrue(service.lastUrl.contains("&id=2173&page=3"));
+		assertFalse(service.lastUrl.contains("year=page"));
+
+		service.getSearchRaw(2173, "tax credits", 4);
+		assertTrue(service.lastUrl.contains("&id=2173&page=4"));
+		assertFalse(service.lastUrl.contains("year=page"));
 	}
 
 	@Test
@@ -183,4 +226,19 @@ public class LegiscanServiceTest {
             throw new RuntimeException("Failed to inject fake HttpClient", e);
         }
     }
+
+	private static class CapturingLegiscanService extends LegiscanService {
+		private String lastUrl;
+
+		CapturingLegiscanService() {
+			super("fake-api-key");
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public <T> T makeRequest(TypeReference<T> typeRef, String url) {
+			lastUrl = url;
+			return (T) new LegiscanResponse();
+		}
+	}
 }
